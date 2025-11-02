@@ -249,7 +249,7 @@ def get_published_reviews_for_iteration(module_iteration_id):
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     cur.execute(
-        "SELECT * FROM reviews WHERE module_iteration_id = %s AND moderation_status = %s",
+        "SELECT * FROM reviews WHERE module_iteration_id = %s AND (moderation_status = %s OR moderation_status = %s)",
         (module_iteration_id, 'published')
     )
     reviews = cur.fetchall()
@@ -295,3 +295,81 @@ def get_module_info_with_iterations(module_id):
             }
 
     return years_info
+
+def like_review(review_id, like_or_dislike=True):
+    """
+    Increment the like count for a review.
+
+    Args:
+        review_id (int): The review ID
+
+    Returns:
+        int: The new like count
+    """
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute(
+        "UPDATE reviews SET like_dislike = like_dislike %s 1 WHERE id = %s RETURNING like_dislike",
+        ('+' if like_or_dislike else '-', review_id)
+    )
+    result = cur.fetchone()
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return result['like_dislike'] if result else None
+
+def report_review(review_id):
+    """
+    Report a review by setting its moderation status to 'reported'.
+    This will notify admins for review.
+
+    Args:
+        review_id (int): The review ID
+
+    Returns:
+        bool: True if successful
+    """
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute(
+        "UPDATE reviews SET report_count = report_count + 1 WHERE id = %s",
+        (review_id)
+    )
+
+    cur.execute(
+        "SELECT report_count, report_tolerance FROM reviews WHERE id = %s",
+        (review_id)
+    )
+
+    result = cur.fetchone()
+
+    if result['report_count'] >= result['report_tolerance']:
+        cur.execute(
+            "UPDATE reviews SET moderation_status = %s WHERE id = %s",
+            ('reported', review_id)
+        )
+
+        notify_admins_of_reported_review(review_id)
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return True
+
+
+def notify_admins_of_reported_review(review_id):
+    """
+    Skeleton function to notify admins of a reported review.
+
+    Args:
+        review_id (int): The review ID
+    """
+    # TODO: Implement admin notification system
+    # This could send emails, create notifications in admin panel, etc.
+    print(f"ADMIN NOTIFICATION: Review {review_id} has been reported and requires moderation")
+    pass
