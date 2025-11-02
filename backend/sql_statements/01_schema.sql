@@ -49,5 +49,7 @@ CREATE TABLE IF NOT EXISTS reviews (
   comment TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   moderation_status VARCHAR(50),
+  report_tolerance INT DEFAULT 1,
+  report_count INT DEFAULT 0,
   like_dislike INT DEFAULT 0
 );
