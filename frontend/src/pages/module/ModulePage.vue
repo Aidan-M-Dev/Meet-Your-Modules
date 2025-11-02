@@ -32,7 +32,14 @@
           <div class="info-item" v-if="currentYearData.lecturers && currentYearData.lecturers.length > 0">
             <div class="info-label">Lecturer{{ currentYearData.lecturers.length > 1 ? 's' : '' }}</div>
             <div class="info-value">
-              {{ currentYearData.lecturers.map(l => l.name).join(', ') }}
+              <router-link
+                v-for="(lecturer, index) in currentYearData.lecturers"
+                :key="lecturer.id"
+                :to="`/?q=${encodeURIComponent(lecturer.name)}`"
+                class="info-link"
+              >
+                {{ lecturer.name }}<span v-if="index < currentYearData.lecturers.length - 1">, </span>
+              </router-link>
             </div>
           </div>
           <div class="info-item" v-else>
@@ -43,7 +50,14 @@
           <div class="info-item" v-if="currentYearData.courses && currentYearData.courses.length > 0">
             <div class="info-label">Available To</div>
             <div class="info-value">
-              {{ currentYearData.courses.map(c => c.title).join(', ') }}
+              <router-link
+                v-for="(course, index) in currentYearData.courses"
+                :key="course.id"
+                :to="`/?course=${encodeURIComponent(course.title)}`"
+                class="info-link"
+              >
+                {{ course.title }}<span v-if="index < currentYearData.courses.length - 1">, </span>
+              </router-link>
             </div>
           </div>
         </div>
