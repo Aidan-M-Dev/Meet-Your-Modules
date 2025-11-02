@@ -3,7 +3,8 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from flask_cors import CORS
-from db import search_modules_by_code, search_modules_by_name, get_module_info_with_iterations, get_all_courses
+from db import search_modules_by_code, search_modules_by_name, get_module_info_with_iterations, get_all_courses, like_or_dislike_review, report_review, submit_review, get_pending_reviews, get_rejected_reviews, accept_review, reject_review
+from lib import sentiment_review
 
 # Load .env from repo root if present so frontend and backend can share the same env file.
 # Fallback to default behaviour (load from CWD) if repo-root .env is not present.
@@ -59,6 +60,37 @@ def get_module_info_route(module_id):
             return jsonify({"error": "Module not found"}), 404
 
         return jsonify({"yearsInfo": years_info}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/api/likeReview/<review_id>/<like_or_dislike>")
+def like_review_route(review_id, like_or_dislike):
+    try:
+        # Convert string to boolean
+        like_bool = like_or_dislike.lower() == 'true'
+        # Call the database function to like or dislike the review
+        result = like_or_dislike_review(review_id, like_bool)
+        return jsonify({"result": result}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/api/reportReview/<review_id>")
+def report_review_route(review_id):
+    try:
+        # Call the database function to report the review
+        result = report_review(review_id)
+        return jsonify({"result": result}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    
+@app.route("/api/submitReview/<module_iteration_id>", methods=["POST"])
+def submit_review_route(module_iteration_id):
+    try:
+        rating = request.args.get("overall_rating")
+        text = request.form.get("reviewText")
+        reasonable = sentiment_review(text)
+        result = submit_review(module_iteration_id, text, rating, reasonable) 
+        return jsonify({"result": result}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
