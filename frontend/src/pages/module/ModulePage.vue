@@ -29,16 +29,16 @@
             <div class="info-value">{{ moduleCredits }}</div>
           </div>
 
-          <div class="info-item" v-if="currentYearData.lecturers && currentYearData.lecturers.length > 0">
-            <div class="info-label">Lecturer{{ currentYearData.lecturers.length > 1 ? 's' : '' }}</div>
+          <div class="info-item" v-if="uniqueLecturers.length > 0">
+            <div class="info-label">Lecturer{{ uniqueLecturers.length > 1 ? 's' : '' }}</div>
             <div class="info-value">
               <router-link
-                v-for="(lecturer, index) in currentYearData.lecturers"
+                v-for="(lecturer, index) in uniqueLecturers"
                 :key="lecturer.id"
                 :to="`/?q=${encodeURIComponent(lecturer.name)}`"
                 class="info-link"
               >
-                {{ lecturer.name }}<span v-if="index < currentYearData.lecturers.length - 1">, </span>
+                {{ lecturer.name }}<span v-if="index < uniqueLecturers.length - 1">, </span>
               </router-link>
             </div>
           </div>
@@ -61,6 +61,69 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Write Review Section -->
+      <div class="write-review-section" v-if="!showReviewForm">
+        <button @click="showReviewForm = true" class="btn-primary">
+          ✍️ Write a Review
+        </button>
+      </div>
+
+      <div class="review-form-section" v-if="showReviewForm">
+        <h2>Write a Review</h2>
+        <form @submit.prevent="submitReview" class="review-form">
+          <div class="form-group">
+            <label for="review-year">Academic Year</label>
+            <select
+              id="review-year"
+              v-model="newReview.selectedYear"
+              class="filter-select"
+              required
+            >
+              <option v-for="year in availableYears" :key="year" :value="year">
+                {{ formatAcademicYear(year) }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Rating</label>
+            <div class="star-selector">
+              <button
+                v-for="star in 5"
+                :key="star"
+                type="button"
+                @click="newReview.rating = star"
+                class="star-btn"
+                :class="{ active: star <= newReview.rating }"
+              >
+                {{ star <= newReview.rating ? '★' : '☆' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="review-comment">Your Review</label>
+            <textarea
+              id="review-comment"
+              v-model="newReview.comment"
+              rows="5"
+              placeholder="Share your experience with this module..."
+              required
+              class="review-textarea"
+            ></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-primary" :disabled="submittingReview">
+              {{ submittingReview ? 'Submitting...' : 'Submit Review' }}
+            </button>
+            <button type="button" @click="cancelReview" class="btn-secondary">
+              Cancel
+            </button>
+          </div>
+        </form>
       </div>
 
       <!-- Reviews Section -->
@@ -96,7 +159,12 @@
                 </div>
                 <p class="review-comment">{{ review.comment }}</p>
                 <div class="review-footer">
-                  <span class="likes">👍 {{ review.like_dislike }}</span>
+                  <button @click="likeReview(review.id)" class="review-action-btn like-btn">
+                    👍 {{ review.like_dislike }}
+                  </button>
+                  <button @click="reportReview(review.id)" class="review-action-btn report-btn">
+                    🚩 Report
+                  </button>
                 </div>
               </div>
             </div>
@@ -123,6 +191,13 @@ export default {
     const moduleCredits = ref(0)
     const loading = ref(false)
     const error = ref(null)
+    const showReviewForm = ref(false)
+    const submittingReview = ref(false)
+    const newReview = ref({
+      selectedYear: null,
+      rating: 5,
+      comment: ''
+    })
 
     const formatAcademicYear = (year) => {
       const yearNum = parseInt(year)
@@ -143,6 +218,20 @@ export default {
     const currentYearData = computed(() => {
       if (!currentYear.value || !moduleData.value?.yearsInfo) return null
       return moduleData.value.yearsInfo[currentYear.value]
+    })
+
+    const uniqueLecturers = computed(() => {
+      if (!currentYearData.value?.lecturers) return []
+
+      // Deduplicate lecturers by ID
+      const seen = new Set()
+      return currentYearData.value.lecturers.filter(lecturer => {
+        if (seen.has(lecturer.id)) {
+          return false
+        }
+        seen.add(lecturer.id)
+        return true
+      })
     })
 
     const weightedRating = computed(() => {
@@ -169,6 +258,11 @@ export default {
       if (!moduleData.value?.yearsInfo) return 0
       return Object.values(moduleData.value.yearsInfo)
         .reduce((sum, yearData) => sum + (yearData.reviews?.length || 0), 0)
+    })
+
+    const availableYears = computed(() => {
+      if (!moduleData.value?.yearsInfo) return []
+      return Object.keys(moduleData.value.yearsInfo).sort((a, b) => b - a)
     })
 
     const reviewsByYear = computed(() => {
@@ -258,6 +352,125 @@ export default {
       }
     })
 
+    const likeReview = async (reviewId) => {
+      try {
+        const response = await fetch(`/api/likeReview/${reviewId}/true`, {
+          method: 'GET'
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to like review')
+        }
+
+        // Refresh module data to get updated like count
+        if (moduleCode.value) {
+          fetchModuleData(moduleCode.value)
+        }
+      } catch (err) {
+        console.error('Error liking review:', err)
+        alert('Failed to like review')
+      }
+    }
+
+    const reportReview = async (reviewId) => {
+      if (!confirm('Are you sure you want to report this review?')) {
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/reportReview/${reviewId}`, {
+          method: 'GET'
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to report review')
+        }
+
+        alert('Review reported. Thank you for helping maintain quality.')
+
+        // Refresh module data
+        if (moduleCode.value) {
+          fetchModuleData(moduleCode.value)
+        }
+      } catch (err) {
+        console.error('Error reporting review:', err)
+        alert('Failed to report review')
+      }
+    }
+
+    const submitReview = async () => {
+      if (!newReview.value.comment.trim()) {
+        alert('Please write a review comment')
+        return
+      }
+
+      if (!newReview.value.selectedYear) {
+        alert('Please select an academic year')
+        return
+      }
+
+      const selectedYearData = moduleData.value?.yearsInfo[newReview.value.selectedYear]
+      if (!selectedYearData?.iteration_id) {
+        alert('Unable to submit review - module iteration not found')
+        return
+      }
+
+      submittingReview.value = true
+
+      try {
+        const formData = new FormData()
+        formData.append('reviewText', newReview.value.comment)
+
+        const response = await fetch(
+          `/api/submitReview/${selectedYearData.iteration_id}?overall_rating=${newReview.value.rating}`,
+          {
+            method: 'POST',
+            body: formData
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error('Failed to submit review')
+        }
+
+        alert('Review submitted successfully!')
+
+        // Reset form
+        newReview.value = {
+          selectedYear: currentYear.value,
+          rating: 5,
+          comment: ''
+        }
+        showReviewForm.value = false
+
+        // Refresh module data to show new review
+        if (moduleCode.value) {
+          fetchModuleData(moduleCode.value)
+        }
+      } catch (err) {
+        console.error('Error submitting review:', err)
+        alert('Failed to submit review. Please try again.')
+      } finally {
+        submittingReview.value = false
+      }
+    }
+
+    const cancelReview = () => {
+      newReview.value = {
+        selectedYear: currentYear.value,
+        rating: 5,
+        comment: ''
+      }
+      showReviewForm.value = false
+    }
+
+    // Initialize selectedYear when form is opened
+    watch(showReviewForm, (isOpen) => {
+      if (isOpen && currentYear.value) {
+        newReview.value.selectedYear = currentYear.value
+      }
+    })
+
     return {
       moduleCode,
       moduleName,
@@ -268,9 +481,19 @@ export default {
       currentYear,
       currentYearFormatted,
       currentYearData,
+      uniqueLecturers,
       weightedRating,
       totalReviews,
-      reviewsByYear
+      availableYears,
+      reviewsByYear,
+      showReviewForm,
+      submittingReview,
+      newReview,
+      formatAcademicYear,
+      likeReview,
+      reportReview,
+      submitReview,
+      cancelReview
     }
   }
 }
@@ -480,11 +703,6 @@ export default {
   display: flex;
   align-items: center;
   gap: 1rem;
-}
-
-.likes {
-  font-size: 0.875rem;
-  color: #6b7280;
 }
 
 @media (max-width: 768px) {
