@@ -10,13 +10,27 @@
       <div class="admin-card">
         <h2>Pending Reviews ({{ pendingReviews.length }})</h2>
 
+        <div class="filter-group">
+          <label for="pending-search">Search Pending Reviews: </label>
+          <input
+            id="pending-search"
+            v-model="pendingSearchQuery"
+            type="text"
+            placeholder="Search by module code, name, or comment..."
+            class="filter-input"
+          />
+        </div>
+
         <div v-if="loadingPending" class="loading">Loading pending reviews...</div>
         <div v-else-if="pendingError" class="error">{{ pendingError }}</div>
-        <div v-else-if="pendingReviews.length === 0" class="no-content">
+        <div v-else-if="filteredPendingReviews.length === 0 && pendingReviews.length === 0" class="no-content">
           No pending reviews to moderate
         </div>
+        <div v-else-if="filteredPendingReviews.length === 0" class="no-content">
+          No pending reviews match your search
+        </div>
         <div v-else class="reviews-list">
-          <div v-for="review in pendingReviews" :key="review.id" class="review-item">
+          <div v-for="review in filteredPendingReviews" :key="review.id" class="review-item">
             <div class="review-header">
               <div class="review-module">
                 <router-link :to="`/module/${review.module_code}`" class="module-link">
@@ -56,7 +70,7 @@
         <h2>Rejected Reviews</h2>
 
         <div class="filter-group">
-          <label for="rejected-search">Search Rejected Reviews:</label>
+          <label for="rejected-search">Search Rejected Reviews: </label>
           <input
             id="rejected-search"
             v-model="rejectedSearchQuery"
@@ -115,6 +129,7 @@ export default {
     const pendingError = ref(null)
     const rejectedError = ref(null)
     const processingReview = ref(null)
+    const pendingSearchQuery = ref('')
     const rejectedSearchQuery = ref('')
 
     const formatAcademicYear = (year) => {
@@ -122,6 +137,19 @@ export default {
       const nextYear = yearNum + 1
       return `${yearNum.toString().slice(-2)}/${nextYear.toString().slice(-2)} AY`
     }
+
+    const filteredPendingReviews = computed(() => {
+      if (!pendingSearchQuery.value.trim()) {
+        return pendingReviews.value
+      }
+
+      const search = pendingSearchQuery.value.toLowerCase()
+      return pendingReviews.value.filter(review =>
+        review.module_code.toLowerCase().includes(search) ||
+        review.module_name.toLowerCase().includes(search) ||
+        review.comment.toLowerCase().includes(search)
+      )
+    })
 
     const filteredRejectedReviews = computed(() => {
       if (!rejectedSearchQuery.value.trim()) {
@@ -247,7 +275,9 @@ export default {
       pendingError,
       rejectedError,
       processingReview,
+      pendingSearchQuery,
       rejectedSearchQuery,
+      filteredPendingReviews,
       filteredRejectedReviews,
       formatAcademicYear,
       acceptReview,
