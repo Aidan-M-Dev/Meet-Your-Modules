@@ -17,6 +17,20 @@
         </button>
       </div>
 
+      <div class="filters">
+        <div class="filter-group">
+          <label for="course-filter">Filter by Course:</label>
+          <input
+            id="course-filter"
+            v-model="courseQuery"
+            @input="applyFilters"
+            type="text"
+            placeholder="Enter course name..."
+            class="filter-input"
+          />
+        </div>
+      </div>
+
       <div v-if="loading" class="loading">
         Searching...
       </div>
@@ -25,23 +39,37 @@
         {{ error }}
       </div>
 
-      <div v-else-if="searchQuery && results.length === 0" class="no-results">
+      <div v-else-if="searchQuery && filteredResults.length === 0 && allResults.length > 0" class="no-results">
+        No modules match your filters. Try adjusting your course or lecturer selection.
+      </div>
+
+      <div v-else-if="searchQuery && allResults.length === 0" class="no-results">
         No modules found matching "{{ searchQuery }}"
       </div>
 
-      <div v-else-if="results.length > 0" class="results">
-        <p class="results-count">Found {{ results.length }} module{{ results.length !== 1 ? 's' : '' }}</p>
+      <div v-else-if="filteredResults.length > 0" class="results">
+        <p class="results-count">
+          Found {{ filteredResults.length }} module{{ filteredResults.length !== 1 ? 's' : '' }}
+          <span v-if="filteredResults.length < allResults.length" class="filtered-count">
+            (filtered from {{ allResults.length }})
+          </span>
+        </p>
 
         <div class="results-list">
           <router-link
-            v-for="module in results"
+            v-for="module in filteredResults"
             :key="module.id"
             :to="`/module/${module.code}`"
             class="module-card"
           >
             <div class="module-code">{{ module.code }}</div>
             <div class="module-name">{{ module.name }}</div>
-            <div class="module-credits">{{ module.credits }} credits</div>
+            <div class="module-meta">
+              <span class="module-credits">{{ module.credits }} credits</span>
+              <span v-if="module.current_lecturers && module.current_lecturers.length > 0" class="module-lecturers">
+                {{ module.current_lecturers.map(l => l.name).join(', ') }}
+              </span>
+            </div>
           </router-link>
         </div>
       </div>
@@ -54,7 +82,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import '/src/assets/shared.css'
 
@@ -64,14 +92,32 @@ export default {
     const route = useRoute()
     const router = useRouter()
     const searchQuery = ref('')
-    const results = ref([])
+    const allResults = ref([])
+    const courseQuery = ref('')
     const loading = ref(false)
     const error = ref(null)
     let searchTimeout = null
 
+    const filteredResults = computed(() => {
+      let filtered = allResults.value
+
+      // Filter by course name
+      if (courseQuery.value.trim()) {
+        const courseSearch = courseQuery.value.toLowerCase()
+        filtered = filtered.filter(module =>
+          module.current_courses &&
+          module.current_courses.some(c =>
+            c.title.toLowerCase().includes(courseSearch)
+          )
+        )
+      }
+
+      return filtered
+    })
+
     const performSearch = async (query) => {
       if (!query.trim()) {
-        results.value = []
+        allResults.value = []
         return
       }
 
@@ -86,7 +132,7 @@ export default {
         }
 
         const data = await response.json()
-        results.value = data.modules || []
+        allResults.value = data.modules || []
       } catch (err) {
         error.value = err.message
         console.error('Search error:', err)
@@ -112,14 +158,20 @@ export default {
       }, 300)
     }
 
+    const applyFilters = () => {
+      // Filters are applied via computed property
+      // This just triggers reactivity if needed
+    }
+
     const clearSearch = () => {
       searchQuery.value = ''
-      results.value = []
+      allResults.value = []
+      courseQuery.value = ''
       error.value = null
       router.push({ query: {} })
     }
 
-    // Load search from URL on mount
+    // Search from URL on mount
     onMounted(() => {
       const queryParam = route.query.q
       if (queryParam) {
@@ -130,10 +182,13 @@ export default {
 
     return {
       searchQuery,
-      results,
+      allResults,
+      filteredResults,
+      courseQuery,
       loading,
       error,
       handleSearch,
+      applyFilters,
       clearSearch
     }
   }
@@ -156,7 +211,7 @@ h1 {
 
 .search-box {
   position: relative;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .search-input {
@@ -182,6 +237,46 @@ h1 {
   color: #6b7280;
 }
 
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1.25rem;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.filter-select,
+.filter-input {
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-select:focus,
+.filter-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
 .error {
   text-align: center;
 }
@@ -204,6 +299,11 @@ h1 {
   color: #6b7280;
   margin-bottom: 1rem;
   font-size: 0.875rem;
+}
+
+.filtered-count {
+  color: #9ca3af;
+  font-size: 0.8rem;
 }
 
 .results-list {
@@ -243,8 +343,21 @@ h1 {
   margin-bottom: 0.5rem;
 }
 
+.module-meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .module-credits {
   font-size: 0.875rem;
   color: #6b7280;
+}
+
+.module-lecturers {
+  font-size: 0.875rem;
+  color: #7c3aed;
+  font-style: italic;
 }
 </style>

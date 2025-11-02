@@ -37,29 +37,108 @@ def search_modules_by_code(module_code):
 
 def search_modules_by_name(search_term):
     """
-    Search for modules by name using case-insensitive pattern matching.
+    Search for modules by name, code, or lecturer using case-insensitive pattern matching.
+    Returns modules with their current year courses and lecturers for filtering.
 
     Args:
-        search_term (str): The search term to match against module names
+        search_term (str): The search term to match against module names, codes, or lecturers
 
     Returns:
-        list: List of module dictionaries matching the search term
+        list: List of module dictionaries with courses and lecturers
     """
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     # Use ILIKE for case-insensitive pattern matching
+    # Search across module name, code, and lecturer names
     search_pattern = f"%{search_term}%"
-    cur.execute(
-        "SELECT * FROM modules WHERE name ILIKE %s OR code ILIKE %s ORDER BY code",
-        (search_pattern, search_pattern)
-    )
+    cur.execute("""
+        SELECT DISTINCT m.*
+        FROM modules m
+        LEFT JOIN module_iterations mi ON m.id = mi.module_id
+        LEFT JOIN module_iterations_lecturers_links mil ON mi.id = mil.module_iteration_id
+        LEFT JOIN lecturers l ON mil.lecturer_id = l.id
+        WHERE
+          m.name ILIKE %s OR
+          m.code ILIKE %s OR
+          l.name ILIKE %s
+        ORDER BY m.code
+    """, (search_pattern, search_pattern, search_pattern))
     modules = cur.fetchall()
+
+    # Get the most recent year from module_iterations
+    cur.execute("SELECT MAX(academic_year_start_year) FROM module_iterations")
+    result = cur.fetchone()
+    current_year = result['max'] if result and result['max'] else None
+
+    # Enrich each module with current year courses and lecturers
+    enriched_modules = []
+    for module in modules:
+        if current_year:
+            # Get current year iteration
+            cur.execute(
+                "SELECT id FROM module_iterations WHERE module_id = %s AND academic_year_start_year = %s",
+                (module['id'], current_year)
+            )
+            iteration = cur.fetchone()
+
+            if iteration:
+                # Get courses for this iteration
+                cur.execute("""
+                    SELECT c.id, c.title
+                    FROM courses c
+                    INNER JOIN module_iterations_courses_links micl ON c.id = micl.course_id
+                    WHERE micl.module_iteration_id = %s
+                """, (iteration['id'],))
+                courses = cur.fetchall()
+
+                # Get lecturers for this iteration
+                cur.execute("""
+                    SELECT l.id, l.name
+                    FROM lecturers l
+                    INNER JOIN module_iterations_lecturers_links mil ON l.id = mil.lecturer_id
+                    WHERE mil.module_iteration_id = %s
+                """, (iteration['id'],))
+                lecturers = cur.fetchall()
+
+                enriched_module = dict(module)
+                enriched_module['current_courses'] = courses
+                enriched_module['current_lecturers'] = lecturers
+                enriched_modules.append(enriched_module)
+            else:
+                enriched_module = dict(module)
+                enriched_module['current_courses'] = []
+                enriched_module['current_lecturers'] = []
+                enriched_modules.append(enriched_module)
+        else:
+            enriched_module = dict(module)
+            enriched_module['current_courses'] = []
+            enriched_module['current_lecturers'] = []
+            enriched_modules.append(enriched_module)
 
     cur.close()
     conn.close()
 
-    return modules
+    return enriched_modules
+
+
+def get_all_courses():
+    """
+    Get all courses.
+
+    Returns:
+        list: List of all course dictionaries
+    """
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("SELECT * FROM courses ORDER BY title")
+    courses = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return courses
 
 
 def get_module_by_id(module_id):
