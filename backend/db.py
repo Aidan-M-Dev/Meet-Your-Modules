@@ -41,7 +41,8 @@ def search_modules_by_name(search_term):
     Returns modules with their current year courses and lecturers for filtering.
 
     Args:
-        search_term (str): The search term to match against module names, codes, or lecturers
+        search_term (str): The search term to match against module names, codes, or lecturers.
+                          Use '*' to return all modules.
 
     Returns:
         list: List of module dictionaries with courses and lecturers
@@ -49,22 +50,27 @@ def search_modules_by_name(search_term):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    # Use ILIKE for case-insensitive pattern matching
-    # Search across module name, code, and lecturer names
-    search_pattern = f"%{search_term}%"
-    cur.execute("""
-        SELECT DISTINCT m.*
-        FROM modules m
-        LEFT JOIN module_iterations mi ON m.id = mi.module_id
-        LEFT JOIN module_iterations_lecturers_links mil ON mi.id = mil.module_iteration_id
-        LEFT JOIN lecturers l ON mil.lecturer_id = l.id
-        WHERE
-          m.name ILIKE %s OR
-          m.code ILIKE %s OR
-          l.name ILIKE %s
-        ORDER BY m.code
-    """, (search_pattern, search_pattern, search_pattern))
-    modules = cur.fetchall()
+    # If search term is '*', return all modules
+    if search_term == '*':
+        cur.execute("SELECT * FROM modules ORDER BY code")
+        modules = cur.fetchall()
+    else:
+        # Use ILIKE for case-insensitive pattern matching
+        # Search across module name, code, and lecturer names
+        search_pattern = f"%{search_term}%"
+        cur.execute("""
+            SELECT DISTINCT m.*
+            FROM modules m
+            LEFT JOIN module_iterations mi ON m.id = mi.module_id
+            LEFT JOIN module_iterations_lecturers_links mil ON mi.id = mil.module_iteration_id
+            LEFT JOIN lecturers l ON mil.lecturer_id = l.id
+            WHERE
+              m.name ILIKE %s OR
+              m.code ILIKE %s OR
+              l.name ILIKE %s
+            ORDER BY m.code
+        """, (search_pattern, search_pattern, search_pattern))
+        modules = cur.fetchall()
 
     # Get the most recent year from module_iterations
     cur.execute("SELECT MAX(academic_year_start_year) FROM module_iterations")

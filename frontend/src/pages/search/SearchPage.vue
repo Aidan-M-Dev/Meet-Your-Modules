@@ -39,12 +39,13 @@
         {{ error }}
       </div>
 
-      <div v-else-if="searchQuery && filteredResults.length === 0 && allResults.length > 0" class="no-results">
-        No modules match your filters. Try adjusting your course or lecturer selection.
+      <div v-else-if="(searchQuery || courseQuery) && filteredResults.length === 0 && allResults.length > 0" class="no-results">
+        No modules match your filters. Try adjusting your search.
       </div>
 
-      <div v-else-if="searchQuery && allResults.length === 0" class="no-results">
-        No modules found matching "{{ searchQuery }}"
+      <div v-else-if="(searchQuery || courseQuery) && allResults.length === 0" class="no-results">
+        <span v-if="searchQuery">No modules found matching "{{ searchQuery }}"</span>
+        <span v-else>No modules found</span>
       </div>
 
       <div v-else-if="filteredResults.length > 0" class="results">
@@ -116,7 +117,8 @@ export default {
     })
 
     const performSearch = async (query) => {
-      if (!query.trim()) {
+      // If neither search query nor course filter, clear results
+      if (!query.trim() && !courseQuery.value.trim()) {
         allResults.value = []
         return
       }
@@ -125,7 +127,9 @@ export default {
       error.value = null
 
       try {
-        const response = await fetch(`/api/searchModules?q=${encodeURIComponent(query)}`)
+        // Use '*' as query if only filtering by course
+        const searchQuery = query.trim() || '*'
+        const response = await fetch(`/api/searchModules?q=${encodeURIComponent(searchQuery)}`)
 
         if (!response.ok) {
           throw new Error(`Search failed: ${response.statusText}`)
@@ -159,8 +163,10 @@ export default {
     }
 
     const applyFilters = () => {
-      // Filters are applied via computed property
-      // This just triggers reactivity if needed
+      // Trigger search if course filter is being used
+      if (courseQuery.value.trim() && !searchQuery.value.trim()) {
+        performSearch('')
+      }
     }
 
     const clearSearch = () => {
