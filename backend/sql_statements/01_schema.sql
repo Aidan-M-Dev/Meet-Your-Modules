@@ -44,7 +44,6 @@ CREATE TABLE IF NOT EXISTS module_iterations_courses_links (
 CREATE TABLE IF NOT EXISTS reviews (
   id SERIAL PRIMARY KEY,
   module_iteration_id INT REFERENCES module_iterations(id) ON DELETE CASCADE,
-  user_id INT NOT NULL,
   overall_rating INT CHECK (overall_rating >= 1 AND overall_rating <= 5),
   comment TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

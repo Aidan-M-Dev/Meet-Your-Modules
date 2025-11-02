@@ -209,59 +209,59 @@ INSERT INTO module_iterations_courses_links (module_iteration_id, course_id) VAL
   (19, 3), (19, 4);
 
 -- Insert Reviews (with various ratings and statuses)
-INSERT INTO reviews (module_iteration_id, user_id, overall_rating, comment, moderation_status, like_dislike) VALUES
+INSERT INTO reviews (module_iteration_id, overall_rating, comment, moderation_status, like_dislike) VALUES
   -- CS101 2022 reviews
-  (1, 101, 5, 'Excellent introduction to programming! Dr. Johnson explains concepts very clearly.', 'published', 15),
-  (1, 102, 4, 'Great module, very well structured. The assignments were challenging but fair.', 'published', 8),
-  (1, 103, 5, 'Best module I have taken. Really builds a strong foundation in programming.', 'published', 12),
+  (1, 5, 'Excellent introduction to programming! Dr. Johnson explains concepts very clearly.', 'published', 15),
+  (1, 4, 'Great module, very well structured. The assignments were challenging but fair.', 'published', 8),
+  (1, 5, 'Best module I have taken. Really builds a strong foundation in programming.', 'published', 12),
 
   -- CS101 2023 reviews
-  (2, 104, 4, 'Good module overall. Having two lecturers brought different perspectives.', 'published', 6),
-  (2, 105, 5, 'Absolutely loved this module! The practical exercises were very helpful.', 'published', 10),
-  (2, 106, 3, 'Decent module but the pace was sometimes too fast.', 'published', 2),
+  (2, 4, 'Good module overall. Having two lecturers brought different perspectives.', 'published', 6),
+  (2, 5, 'Absolutely loved this module! The practical exercises were very helpful.', 'published', 10),
+  (2, 3, 'Decent module but the pace was sometimes too fast.', 'published', 2),
 
   -- CS101 2024 reviews
-  (3, 107, 5, 'Dr. Kim is an amazing lecturer. Makes programming fun and accessible.', 'published', 20),
-  (3, 108, 4, 'Very engaging module with lots of hands-on coding practice.', 'published', 7),
+  (3, 5, 'Dr. Kim is an amazing lecturer. Makes programming fun and accessible.', 'published', 20),
+  (3, 4, 'Very engaging module with lots of hands-on coding practice.', 'published', 7),
 
   -- CS102 2022 reviews
-  (4, 109, 5, 'Prof. Chen is brilliant! Data structures finally make sense.', 'published', 18),
-  (4, 110, 4, 'Challenging but rewarding. The algorithmic thinking skills are invaluable.', 'published', 9),
+  (4, 5, 'Prof. Chen is brilliant! Data structures finally make sense.', 'published', 18),
+  (4, 4, 'Challenging but rewarding. The algorithmic thinking skills are invaluable.', 'published', 9),
 
   -- CS102 2023 reviews
-  (5, 111, 5, 'Excellent module. The content is well-paced and the examples are practical.', 'published', 14),
-  (5, 112, 3, 'Good content but very heavy workload.', 'published', 3),
+  (5, 5, 'Excellent module. The content is well-paced and the examples are practical.', 'published', 14),
+  (5, 3, 'Good content but very heavy workload.', 'published', 3),
 
   -- CS201 2023 reviews
-  (7, 113, 4, 'Really useful module. SQL and database design skills are so practical.', 'published', 11),
-  (7, 114, 5, 'Dr. Rodriguez is fantastic! The project was challenging but educational.', 'published', 16),
+  (7, 4, 'Really useful module. SQL and database design skills are so practical.', 'published', 11),
+  (7, 5, 'Dr. Rodriguez is fantastic! The project was challenging but educational.', 'published', 16),
 
   -- CS201 2024 reviews
-  (8, 115, 5, 'One of the most useful modules for real-world applications.', 'published', 13),
-  (8, 116, 4, 'Great introduction to databases. The assignments were very practical.', 'published', 8),
+  (8, 5, 'One of the most useful modules for real-world applications.', 'published', 13),
+  (8, 4, 'Great introduction to databases. The assignments were very practical.', 'published', 8),
 
   -- CS202 2024 reviews
-  (10, 117, 5, 'Amazing module! Building actual websites was so satisfying.', 'published', 19),
-  (10, 118, 4, 'Very hands-on and practical. Learned a lot about modern web development.', 'published', 10),
+  (10, 5, 'Amazing module! Building actual websites was so satisfying.', 'published', 19),
+  (10, 4, 'Very hands-on and practical. Learned a lot about modern web development.', 'published', 10),
 
   -- CS301 2024 reviews
-  (11, 119, 5, 'Fascinating introduction to ML. Dr. Patel explains complex topics clearly.', 'published', 17),
-  (11, 120, 4, 'Very interesting module but quite mathematically intensive.', 'published', 7),
+  (11, 5, 'Fascinating introduction to ML. Dr. Patel explains complex topics clearly.', 'published', 17),
+  (11, 4, 'Very interesting module but quite mathematically intensive.', 'published', 7),
 
   -- CS101 Evening 2023 reviews
-  (13, 121, 5, 'Perfect for mature students. Prof. Anderson is very supportive.', 'published', 9),
-  (13, 122, 4, 'Great evening option for those working during the day.', 'published', 6),
+  (13, 5, 'Perfect for mature students. Prof. Anderson is very supportive.', 'published', 9),
+  (13, 4, 'Great evening option for those working during the day.', 'published', 6),
 
   -- CS101 Evening 2024 reviews
-  (14, 123, 5, 'Excellent module with a supportive learning environment.', 'published', 11),
+  (14, 5, 'Excellent module with a supportive learning environment.', 'published', 11),
 
   -- Some pending/rejected reviews (not published)
-  (3, 124, 2, 'This review is pending moderation.', 'pending', 0),
-  (5, 125, 1, 'Inappropriate content - rejected.', 'rejected', 0),
+  (3, 2, 'This review is pending moderation.', 'reported', 0),
+  (5, 1, 'Inappropriate content - rejected.', 'automatic_review', 0),
 
   -- MATH101 reviews
-  (15, 126, 4, 'Solid calculus course. Prof. Garcia explains concepts well.', 'published', 8),
-  (16, 127, 5, 'Excellent teaching and well-organized lectures.', 'published', 12);
+  (15, 4, 'Solid calculus course. Prof. Garcia explains concepts well.', 'published', 8),
+  (16, 5, 'Excellent teaching and well-organized lectures.', 'published', 12);
 
 -- Display summary of inserted data
 SELECT 'Data insertion complete!' as status;
