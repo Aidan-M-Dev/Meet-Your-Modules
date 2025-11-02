@@ -54,12 +54,12 @@ def get_courses_route():
 @app.route("/api/getModuleInfo/<module_id>")
 def get_module_info_route(module_id):
     try:
-        years_info = get_module_info_with_iterations(module_id)
+        module_info = get_module_info_with_iterations(module_id)
 
-        if years_info is None:
+        if module_info is None:
             return jsonify({"error": "Module not found"}), 404
 
-        return jsonify({"yearsInfo": years_info}), 200
+        return jsonify(module_info), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 

@@ -270,7 +270,7 @@ def get_module_info_with_iterations(module_id):
         module_id (int): The module ID
 
     Returns:
-        dict: Dictionary with yearsInfo structure or None if module not found
+        dict: Dictionary with module metadata and yearsInfo structure or None if module not found
     """
     module = get_module_by_id(module_id)
 
@@ -295,7 +295,15 @@ def get_module_info_with_iterations(module_id):
                 "reviews": reviews
             }
 
-    return years_info
+    return {
+        "module": {
+            "id": module['id'],
+            "code": module['code'],
+            "name": module['name'],
+            "credits": module['credits']
+        },
+        "yearsInfo": years_info
+    }
 
 def like_or_dislike_review(review_id, like_or_dislike=True):
     """

@@ -10,7 +10,7 @@ const routes = [
     component: SearchPage
   },
   {
-    path: '/module/:moduleName',
+    path: '/module/:moduleId',
     name: 'module',
     component: ModulePage,
     props: true
