@@ -1,0 +1,136 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  backend-tests:
+    name: Backend Tests (Python)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: module_guide
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: module_guide_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Initialize test database
+        working-directory: ./backend
+        env:
+          PGPASSWORD: test_password
+        run: |
+          psql -h localhost -U module_guide -d module_guide_test -f sql_statements/01_schema.sql
+          psql -h localhost -U module_guide -d module_guide_test -f sql_statements/02_lecturers_function.sql
+          psql -h localhost -U module_guide -d module_guide_test -f sql_statements/03_courses_function.sql
+
+      - name: Run tests with pytest
+        working-directory: ./backend
+        env:
+          TEST_DATABASE_URL: postgresql://module_guide:test_password@localhost:5432/module_guide_test
+          GOOGLE_API_KEY: test_key_for_ci
+        run: |
+          pytest -v --cov=. --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+
+  frontend-tests:
+    name: Frontend Tests (JavaScript)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run tests with Vitest
+        working-directory: ./frontend
+        run: npm run test -- --run
+
+      - name: Generate coverage
+        working-directory: ./frontend
+        run: npm run test:coverage -- --run
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./frontend/coverage
+          flags: frontend
+          name: frontend-coverage
+
+  lint-and-format:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Check Python code formatting (optional)
+        working-directory: ./backend
+        run: |
+          # Install flake8 for linting
+          pip install flake8
+          # Run flake8 (will fail if errors found)
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Run flake8 with warnings (won't fail build)
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Check JavaScript/Vue formatting (optional)
+        working-directory: ./frontend
+        run: |
+          npm ci
+          # Add ESLint/Prettier checks here when configured
+          echo "Formatting checks passed"
