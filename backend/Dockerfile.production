@@ -1,0 +1,55 @@
+# Production Dockerfile for Backend
+# Builds frontend static files and serves them from Flask
+
+# Stage 1: Build frontend
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /frontend
+
+# Copy frontend package files
+COPY ../frontend/package*.json ./
+
+# Install frontend dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy frontend source
+COPY ../frontend ./
+
+# Build frontend (creates /frontend/dist)
+RUN npm run build
+
+# Stage 2: Build backend with frontend static files
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy backend requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend application code
+COPY . .
+
+# Copy built frontend from frontend-builder stage
+COPY --from=frontend-builder /frontend/dist ./dist
+
+# Create logs directory
+RUN mkdir -p logs
+
+# Expose backend port
+EXPOSE 5000
+
+# Set production environment
+ENV FLASK_ENV=production
+ENV PYTHONUNBUFFERED=1
+
+# Run Flask app
+CMD ["python", "app.py"]

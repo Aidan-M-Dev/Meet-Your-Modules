@@ -1,0 +1,81 @@
+version: '3.8'
+
+# Production docker-compose configuration
+# This serves both frontend (static files) and backend from a single container
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: module_guide_db_prod
+    environment:
+      # IMPORTANT: Change these in production!
+      - POSTGRES_USER=${DB_USER:-module_guide}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-CHANGE_ME_IN_PRODUCTION}
+      - POSTGRES_DB=${DB_NAME:-module_guide}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ./backend/sql_statements:/docker-entrypoint-initdb.d
+    networks:
+      - module_guide_network_prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-module_guide}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile.production
+    container_name: module_guide_app_prod
+    ports:
+      # Single port for both frontend and backend API
+      - "${APP_PORT:-5000}:5000"
+    environment:
+      # Database configuration
+      - DATABASE_URL=postgresql://${DB_USER:-module_guide}:${DB_PASSWORD:-CHANGE_ME_IN_PRODUCTION}@db:5432/${DB_NAME:-module_guide}
+      - DB_POOL_MIN=${DB_POOL_MIN:-2}
+      - DB_POOL_MAX=${DB_POOL_MAX:-10}
+
+      # Flask configuration
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-CHANGE_ME_IN_PRODUCTION}
+      - BACKEND_PORT=5000
+
+      # Google AI API
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+
+      # CORS (for production, should be your domain)
+      - FRONTEND_ADDRESS=${FRONTEND_ADDRESS:-localhost}
+      - FRONTEND_PORT=${FRONTEND_PORT:-5000}
+      - FRONTEND_HTTPS=${FRONTEND_HTTPS:-false}
+
+    networks:
+      - module_guide_network_prod
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data_prod:
+    driver: local
+
+networks:
+  module_guide_network_prod:
+    driver: bridge

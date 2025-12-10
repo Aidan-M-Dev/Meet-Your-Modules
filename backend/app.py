@@ -1,10 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, send_file
 import os
 from dotenv import load_dotenv
 from pathlib import Path
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_compress import Compress
 from db import (
     initialize_connection_pool,
     close_connection_pool,
@@ -71,6 +72,22 @@ limiter = Limiter(
     default_limits=["200 per hour", "50 per minute"],
     storage_uri="memory://",
 )
+
+# Enable gzip compression for all responses
+compress = Compress()
+compress.init_app(app)
+app.config['COMPRESS_MIMETYPES'] = [
+    'text/html',
+    'text/css',
+    'text/xml',
+    'text/plain',
+    'application/json',
+    'application/javascript',
+    'application/x-javascript',
+    'image/svg+xml',
+]
+app.config['COMPRESS_LEVEL'] = 6  # Compression level (1-9, default 6)
+app.config['COMPRESS_MIN_SIZE'] = 500  # Minimum response size to compress (bytes)
 
 # Initialize database connection pool
 initialize_connection_pool()
@@ -305,6 +322,53 @@ def reject_review_route(review_id):
         raise  # Let global handler catch it
     except Exception as e:
         return handle_database_error(e, f"rejecting review {review_id}")
+
+
+# Static file serving for production
+# In production, frontend build files are copied to /app/dist
+STATIC_FOLDER = Path(__file__).parent / 'dist'
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    """
+    Serve frontend static files in production mode.
+
+    In development, frontend is served by Vite dev server on port 5173.
+    In production, this serves the built static files from /app/dist.
+    """
+    # Only serve static files in production mode
+    if not Config.DEBUG and STATIC_FOLDER.exists():
+        # If path is empty or is a directory route (no file extension), serve index.html
+        if path == '' or '.' not in path:
+            return send_file(STATIC_FOLDER / 'index.html')
+
+        # Serve static files (JS, CSS, images, etc.)
+        static_file = STATIC_FOLDER / path
+        if static_file.exists() and static_file.is_file():
+            # Set cache headers for static assets
+            response = send_file(static_file)
+
+            # Cache static assets for 1 year (they have hashed names)
+            if any(path.endswith(ext) for ext in ['.js', '.css', '.woff', '.woff2', '.ttf', '.eot']):
+                response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            # Cache images for 1 week
+            elif any(path.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg']):
+                response.headers['Cache-Control'] = 'public, max-age=604800'
+
+            return response
+
+        # File not found, serve index.html for SPA routing
+        return send_file(STATIC_FOLDER / 'index.html')
+
+    # Development mode or static folder doesn't exist
+    return jsonify({
+        "error": {
+            "message": "Frontend not available. In development, use Vite dev server on port 5173.",
+            "code": "FRONTEND_NOT_AVAILABLE"
+        },
+        "status": "error"
+    }), 404
 
 
 if __name__ == "__main__":
