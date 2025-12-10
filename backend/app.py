@@ -89,9 +89,9 @@ app.config['COMPRESS_MIMETYPES'] = [
 app.config['COMPRESS_LEVEL'] = 6  # Compression level (1-9, default 6)
 app.config['COMPRESS_MIN_SIZE'] = 500  # Minimum response size to compress (bytes)
 
-# Initialize database connection pool (skip in testing mode)
-if not Config.TESTING:
-    initialize_connection_pool()
+# Initialize database connection pool
+# (will skip automatically in testing mode based on FLASK_ENV)
+initialize_connection_pool()
 
 # Register global error handlers
 register_error_handlers(app)

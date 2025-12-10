@@ -34,6 +34,11 @@ def initialize_connection_pool():
         logger.warning("Connection pool already initialized")
         return
 
+    # Skip initialization in testing mode (use mocks instead)
+    if os.getenv('FLASK_ENV', '').lower() == 'testing':
+        logger.info("Skipping connection pool initialization in testing mode")
+        return
+
     try:
         _connection_pool = pool.SimpleConnectionPool(
             MIN_CONNECTIONS,
