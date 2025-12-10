@@ -100,12 +100,13 @@ def search_modules_by_name(search_term):
                 """, (iteration['id'],))
                 courses = cur.fetchall()
 
-                # Get lecturers for this iteration
+                # Get lecturers for this iteration (DISTINCT to avoid duplicates)
                 cur.execute("""
-                    SELECT l.id, l.name
+                    SELECT DISTINCT l.id, l.name
                     FROM lecturers l
                     INNER JOIN module_iterations_lecturers_links mil ON l.id = mil.lecturer_id
                     WHERE mil.module_iteration_id = %s
+                    ORDER BY l.name
                 """, (iteration['id'],))
                 lecturers = cur.fetchall()
 
