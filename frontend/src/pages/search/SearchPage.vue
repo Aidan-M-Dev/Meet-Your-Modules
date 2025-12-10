@@ -77,7 +77,7 @@
           <router-link
             v-for="module in filteredResults"
             :key="module.id"
-            :to="`/module/${module.code}`"
+            :to="`/module/${module.id}`"
             class="module-card"
           >
             <div class="module-code">{{ module.code }}</div>

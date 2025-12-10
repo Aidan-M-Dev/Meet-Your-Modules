@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify, send_from_directory, send_file
 import os
+import tempfile
 from dotenv import load_dotenv
 from pathlib import Path
 from flask_cors import CORS
+
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_compress import Compress
@@ -21,7 +23,7 @@ from db import (
     accept_review,
     reject_review
 )
-from lib import sentiment_review
+from lib import sentiment_review, programme_specification_pdf_parser
 from logger import setup_logger
 from config import get_config
 from validators import (
@@ -42,6 +44,7 @@ from errors import (
     handle_not_implemented,
     ErrorCode
 )
+
 
 # Load .env from repo root if present so frontend and backend can share the same env file.
 # Fallback to default behaviour (load from CWD) if repo-root .env is not present.
@@ -186,6 +189,7 @@ def get_courses_route():
 def get_module_info_route(module_id):
     """Get detailed information for a specific module including all iterations."""
     try:
+
         # Validate module ID
         validated_id = validate_integer_id(module_id, "Module ID")
         years_info = get_module_info_with_iterations(validated_id)
@@ -196,6 +200,7 @@ def get_module_info_route(module_id):
         return jsonify({"yearsInfo": years_info, "status": "success"}), 200
     except ValidationError:
         raise  # Let global handler catch it
+
     except Exception as e:
         return handle_internal_error(e, "fetching module info")
 
@@ -372,6 +377,44 @@ def serve_frontend(path):
         },
         "status": "error"
     }), 404
+
+@app.route("/api/admin/uploadProgrammeSpec", methods=["POST"])
+def upload_programme_spec_route():
+    try:
+        # Check if file was uploaded
+        if 'pdf' not in request.files:
+            return jsonify({"error": "No PDF file uploaded"}), 400
+
+        pdf_file = request.files['pdf']
+
+        if pdf_file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+
+        if not pdf_file.filename.endswith('.pdf'):
+            return jsonify({"error": "File must be a PDF"}), 400
+
+        # Save file to temporary location
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+            pdf_file.save(tmp_file.name)
+            tmp_path = tmp_file.name
+
+        try:
+            # Parse the PDF
+            pdf_data = programme_specification_pdf_parser(tmp_path)
+
+            # TODO: Process and store the data in database
+            # result = process_programme_spec_data(pdf_data)
+
+            # For now, just return the parsed data
+            return jsonify(pdf_data), 200
+
+        finally:
+            # Clean up temp file
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 
 if __name__ == "__main__":

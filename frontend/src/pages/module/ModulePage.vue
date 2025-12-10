@@ -5,7 +5,7 @@
         <router-link to="/" class="back-link">← Back to Search</router-link>
       </div>
 
-      <div v-if="loading" class="loading">Loading module {{ moduleCode }}...</div>
+      <div v-if="loading" class="loading">Loading module...</div>
       <div v-else-if="error" class="error">{{ error }}</div>
       <div v-else-if="!currentYearData" class="no-data">
         No data available for this module.
@@ -154,7 +154,7 @@
             <div class="year-header">
               <span class="year">{{ yearGroup.yearFormatted }}</span>
               <span v-if="yearGroup.lecturerChange" class="badge badge-purple">
-                👤 Lecturer changed: {{ yearGroup.lecturerChange }}
+                👤 Lecturer(s) changed: {{ yearGroup.lecturerChange }}
               </span>
             </div>
 
@@ -197,8 +197,9 @@ export default {
   name: 'ModulePage',
   setup() {
     const route = useRoute()
-    const moduleCode = ref(route.params.moduleName)
+    const moduleId = ref(route.params.moduleId)
     const moduleData = ref(null)
+    const moduleCode = ref('')
     const moduleName = ref('')
     const moduleCredits = ref(0)
     const loading = ref(false)
@@ -294,7 +295,7 @@ export default {
         const currentLecturers = yearData.lecturers?.map(l => l.name).sort().join(', ')
 
         if (index > 0 && previousLecturers && currentLecturers && previousLecturers !== currentLecturers) {
-          lecturerChange = currentLecturers || 'Not available'
+          lecturerChange = currentLecturers + " --> " + previousLecturers || 'Not available'
         }
 
         result.push({
@@ -310,37 +311,31 @@ export default {
       return result
     })
 
-    const fetchModuleData = async (code) => {
+    const fetchModuleData = async (id) => {
       loading.value = true
       error.value = null
 
       try {
-        // First query: search for modules by code
-        const searchResponse = await fetch(`/api/searchModulesByCode/${code}`)
-        if (!searchResponse.ok) {
-          throw new Error(`Failed to search modules: ${searchResponse.statusText}`)
+        // Get complete module info by ID
+        const response = await fetch(`/api/getModuleInfo/${id}`)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch module details: ${response.statusText}`)
         }
-        const searchData = await searchResponse.json()
-        const modules = searchData.modules || []
 
-        if (modules.length === 0) {
+        const data = await response.json()
+
+        if (!data.module) {
           moduleData.value = null
           return
         }
 
         // Store module metadata
-        const module = modules[0]
-        moduleName.value = module.name
-        moduleCredits.value = module.credits
+        moduleCode.value = data.module.code
+        moduleName.value = data.module.name
+        moduleCredits.value = data.module.credits
 
-        // Second query: get detailed module info by ID
-        const detailsResponse = await fetch(`/api/getModuleInfo/${module.id}`)
-        if (!detailsResponse.ok) {
-          throw new Error(`Failed to fetch module details: ${detailsResponse.statusText}`)
-        }
-
-        const detailsData = await detailsResponse.json()
-        moduleData.value = detailsData
+        // Store years info
+        moduleData.value = { yearsInfo: data.yearsInfo }
       } catch (err) {
         error.value = err.message
         console.error('Error fetching module data:', err)
@@ -351,16 +346,16 @@ export default {
 
     // Fetch data when component mounts
     onMounted(() => {
-      if (moduleCode.value) {
-        fetchModuleData(moduleCode.value)
+      if (moduleId.value) {
+        fetchModuleData(moduleId.value)
       }
     })
 
     // Watch for route parameter changes
-    watch(() => route.params.moduleName, (newModuleCode) => {
-      moduleCode.value = newModuleCode
-      if (newModuleCode) {
-        fetchModuleData(newModuleCode)
+    watch(() => route.params.moduleId, (newModuleId) => {
+      moduleId.value = newModuleId
+      if (newModuleId) {
+        fetchModuleData(newModuleId)
       }
     })
 
@@ -375,8 +370,8 @@ export default {
         }
 
         // Refresh module data to get updated like count
-        if (moduleCode.value) {
-          fetchModuleData(moduleCode.value)
+        if (moduleId.value) {
+          fetchModuleData(moduleId.value)
         }
       } catch (err) {
         console.error('Error liking review:', err)
@@ -401,8 +396,8 @@ export default {
         alert('Review reported. Thank you for helping maintain quality.')
 
         // Refresh module data
-        if (moduleCode.value) {
-          fetchModuleData(moduleCode.value)
+        if (moduleId.value) {
+          fetchModuleData(moduleId.value)
         }
       } catch (err) {
         console.error('Error reporting review:', err)
@@ -457,8 +452,8 @@ export default {
         showReviewForm.value = false
 
         // Refresh module data to show new review
-        if (moduleCode.value) {
-          fetchModuleData(moduleCode.value)
+        if (moduleId.value) {
+          fetchModuleData(moduleId.value)
         }
       } catch (err) {
         console.error('Error submitting review:', err)

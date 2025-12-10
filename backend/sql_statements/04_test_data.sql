@@ -131,6 +131,30 @@ INSERT INTO module_iterations (module_id, academic_year_start_year) VALUES
 INSERT INTO module_iterations (module_id, academic_year_start_year) VALUES
   (10, '2024');
 
+-- PHYS101 - module_id 11
+INSERT INTO module_iterations (module_id, academic_year_start_year) VALUES
+  (11, '2023'),
+  (11, '2024');
+
+-- PHYS102 - module_id 12
+INSERT INTO module_iterations (module_id, academic_year_start_year) VALUES
+  (12, '2023'),
+  (12, '2024');
+
+-- ENG101 - module_id 13
+INSERT INTO module_iterations (module_id, academic_year_start_year) VALUES
+  (13, '2023'),
+  (13, '2024');
+
+-- ENG201 - module_id 14
+INSERT INTO module_iterations (module_id, academic_year_start_year) VALUES
+  (14, '2024');
+
+-- BUS101 - module_id 15
+INSERT INTO module_iterations (module_id, academic_year_start_year) VALUES
+  (15, '2023'),
+  (15, '2024');
+
 -- Link Module Iterations to Lecturers
 INSERT INTO module_iterations_lecturers_links (module_iteration_id, lecturer_id) VALUES
   -- CS101 2022 taught by Dr. Sarah Johnson
@@ -169,7 +193,26 @@ INSERT INTO module_iterations_lecturers_links (module_iteration_id, lecturer_id)
   (16, 9),
   (17, 10),
   (18, 10),
-  (19, 9);
+  (19, 9),
+
+  -- PHYS101 taught by Prof. Maria Garcia
+  (20, 9),
+  (21, 9),
+
+  -- PHYS102 taught by Dr. Thomas Brown
+  (22, 10),
+  (23, 10),
+
+  -- ENG101 taught by Prof. James Wilson
+  (24, 4),
+  (25, 4),
+
+  -- ENG201 taught by Dr. Robert Taylor
+  (26, 6),
+
+  -- BUS101 taught by Prof. Lisa Anderson
+  (27, 7),
+  (28, 7);
 
 -- Link Module Iterations to Courses
 INSERT INTO module_iterations_courses_links (module_iteration_id, course_id) VALUES
@@ -206,7 +249,22 @@ INSERT INTO module_iterations_courses_links (module_iteration_id, course_id) VAL
   (16, 3), (16, 4),
   (17, 3), (17, 4),
   (18, 3), (18, 4),
-  (19, 3), (19, 4);
+  (19, 3), (19, 4),
+
+  -- PHYS modules are part of BSc Physics program
+  (20, 5),
+  (21, 5),
+  (22, 5),
+  (23, 5),
+
+  -- ENG modules are part of BEng Computer Engineering program
+  (24, 6),
+  (25, 6),
+  (26, 6),
+
+  -- BUS modules are part of BSc Business Information Systems program
+  (27, 7),
+  (28, 7);
 
 -- Insert Reviews (with various ratings and statuses)
 INSERT INTO reviews (module_iteration_id, overall_rating, comment, moderation_status, like_dislike) VALUES
