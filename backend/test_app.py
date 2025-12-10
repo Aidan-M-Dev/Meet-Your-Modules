@@ -430,3 +430,44 @@ def test_gzip_compression(client):
     )
     # Check if response can be gzipped (depends on size)
     assert response.status_code == 200
+
+
+# ============================================================================
+# Additional Error Handler Tests (for coverage)
+# ============================================================================
+
+def test_internal_error_with_context(client):
+    """Test internal error handler with context parameter."""
+    with patch('app.get_all_courses') as mock_courses:
+        # Simulate internal error
+        mock_courses.side_effect = Exception("Database connection lost")
+
+        response = client.get('/api/v1/courses')
+        assert response.status_code == 500
+        data = json.loads(response.data)
+        assert data['error']['code'] == ErrorCode.DATABASE_ERROR
+
+
+def test_database_error_with_operation(client):
+    """Test database error handler with operation parameter."""
+    with patch('app.get_pending_reviews') as mock_pending:
+        # Simulate database error
+        import psycopg2
+        mock_pending.side_effect = psycopg2.Error("Connection timeout")
+
+        response = client.get('/api/v1/admin/pendingReviews')
+        assert response.status_code == 500
+        data = json.loads(response.data)
+        assert data['error']['code'] == ErrorCode.DATABASE_ERROR
+
+
+def test_500_error_handler(client):
+    """Test 500 error handler is triggered."""
+    with patch('app.get_module_info_with_iterations') as mock_get:
+        # Simulate a 500 error by raising a generic exception
+        mock_get.side_effect = RuntimeError("Unexpected error")
+
+        response = client.get('/api/v1/getModuleInfo/1')
+        assert response.status_code == 500
+        data = json.loads(response.data)
+        assert data['error']['code'] == ErrorCode.INTERNAL_ERROR

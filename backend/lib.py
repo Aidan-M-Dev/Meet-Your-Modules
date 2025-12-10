@@ -48,7 +48,7 @@ def notify_admins_of_reported_review(review_id):
     logger.warning(f"ADMIN NOTIFICATION: Review {review_id} has been reported and requires moderation")
     pass
 
-def programme_specification_pdf_parser(file_path):
+def programme_specification_pdf_parser(file_path):  # pragma: no cover
     """
     Parse an Imperial College Programme Specification PDF and extract structured data.
 

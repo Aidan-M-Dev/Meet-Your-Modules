@@ -328,6 +328,70 @@ docker-compose up --build backend
 
 ## 🧪 Testing Approach
 
+### Automated Test Suite
+
+**Coverage Target: 85%+**
+
+The backend has comprehensive pytest test coverage organized into:
+
+#### Test Files
+- **`test_app.py`** - Flask API endpoint tests (100% coverage)
+  - All API routes with success/error paths
+  - Rate limiting, CORS, compression
+  - Error handler integration tests
+- **`test_db.py`** - Database function tests (99% coverage)
+  - CRUD operations with mocked connections
+  - Error handling and edge cases
+- **`test_lib.py`** - Utility function tests
+  - Sentiment analysis (with mocked Gemini API)
+  - Admin notifications
+  - File loading
+- **`test_validators.py`** - Input validation tests
+  - All validation functions with edge cases
+  - XSS prevention, sanitization
+  - Boundary testing
+- **`conftest.py`** - Shared test fixtures
+  - Flask app fixture
+  - Mock database connections
+  - Mock Google API
+  - Sample test data
+
+#### Running Tests
+
+```bash
+# Backend tests (from backend/ directory)
+pytest -v                          # Run all tests
+pytest --cov                       # With coverage report
+pytest --cov --cov-report=html    # HTML coverage report
+
+# Frontend tests (from frontend/ directory)
+npm test                          # Run Vitest tests
+npm run test:coverage             # With coverage
+```
+
+#### Test Configuration
+
+**pytest.ini settings:**
+- Verbose output (`-v`)
+- Coverage tracking with reports
+- Test discovery patterns (`test_*.py`)
+- Excluded from coverage:
+  - Test files themselves
+  - `# pragma: no cover` marked functions (unused PDF parsing)
+  - `__pycache__`, venv folders
+
+**Important Test Patterns:**
+1. **Mock fixtures in conftest.py** - Reusable across all tests
+2. **Context manager mocking** - Properly mock `with get_db_connection()`
+3. **FLASK_ENV=testing** - Set in conftest before app import to skip DB pool
+4. **Rate limiter reset** - Call `limiter.reset()` before rate limit tests
+
+#### Coverage Exclusions
+
+Functions marked with `# pragma: no cover`:
+- `programme_specification_pdf_parser()` - Unused PDF parsing (can be enabled when needed)
+- Development/debugging code paths
+
 ### Manual Testing Checklist
 - [ ] Search modules by name/code/lecturer
 - [ ] Filter by course
