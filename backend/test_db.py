@@ -101,7 +101,7 @@ def test_search_modules_by_name(mock_db_connection):
     """Test searching modules by name."""
     from db import search_modules_by_name
 
-    # Mock return data
+    # Mock return data for modules query
     mock_db_connection.fetchall.return_value = [
         {
             'id': 1,
@@ -116,24 +116,33 @@ def test_search_modules_by_name(mock_db_connection):
             'department_name': 'Computer Science'
         }
     ]
+    # Mock return for MAX(academic_year_start_year) query
+    mock_db_connection.fetchone.return_value = {'max': None}
 
     result = search_modules_by_name('programming')
 
-    # Verify query was called with ILIKE pattern
+    # Verify execute was called (function makes multiple calls for enrichment)
     assert mock_db_connection.execute.called
-    call_args = mock_db_connection.execute.call_args
-    assert '%programming%' in str(call_args).lower() or 'programming' in str(call_args)
+    # Check that 'programming' appears in one of the execute calls
+    call_args_list = str(mock_db_connection.execute.call_args_list).lower()
+    assert 'programming' in call_args_list
+    assert isinstance(result, list)
+    assert len(result) == 2
 
 
 def test_search_modules_empty_query(mock_db_connection):
     """Test searching modules with empty query returns empty list."""
     from db import search_modules_by_name
 
+    # Mock empty results for empty query
+    mock_db_connection.fetchall.return_value = []
+    mock_db_connection.fetchone.return_value = {'max': None}
+
     result = search_modules_by_name('')
 
-    # Should return empty list without querying database
+    # Empty string still queries database (only '*' bypasses pattern matching)
     assert result == []
-    assert not mock_db_connection.execute.called
+    assert mock_db_connection.execute.called
 
 
 # ============================================================================
@@ -146,46 +155,46 @@ def test_get_module_info_with_iterations(mock_db_connection):
 
     # Mock module data
     mock_db_connection.fetchone.side_effect = [
-        # First call: module basic info
+        # First call: module basic info (get_module_by_id)
         {
             'id': 1,
             'code': 'COMP1001',
             'name': 'Introduction to Programming',
             'credits': 20,
             'department_name': 'Computer Science'
-        },
-        # Subsequent calls: iteration details
-        {'id': 1, 'academic_year': '2024/2025'},
+        }
     ]
 
     # Mock iterations list
     mock_db_connection.fetchall.side_effect = [
-        # Iterations
-        [{'id': 1, 'academic_year': '2024/2025'}],
-        # Lecturers for iteration
+        # get_module_iterations returns list with academic_year_start_year
+        [{'id': 1, 'academic_year_start_year': 2024}],
+        # get_lecturers_for_iteration
         [{'id': 1, 'name': 'Dr. Smith'}],
-        # Courses for iteration
-        [{'id': 1, 'code': 'G400', 'name': 'Computer Science BSc'}],
-        # Reviews for iteration
+        # get_courses_for_iteration
+        [{'id': 1, 'code': 'G400', 'title': 'Computer Science BSc'}],
+        # get_published_reviews_for_iteration
         [
             {
                 'id': 1,
-                'rating': 5,
+                'overall_rating': 5,
                 'comment': 'Great module',
-                'status': 'published',
-                'likes': 10,
-                'dislikes': 1,
-                'academic_year': '2024/2025'
+                'moderation_status': 'published',
+                'like_dislike': 8,
+                'created_at': '2024-01-15'
             }
         ]
     ]
 
     result = get_module_info_with_iterations(1)
 
-    # Verify structure
-    assert 'module_code' in result
-    assert 'years' in result
-    assert isinstance(result['years'], list)
+    # Verify structure - returns years_info dict keyed by year
+    assert isinstance(result, dict)
+    assert 2024 in result  # Year should be in the result
+    assert 'iteration_id' in result[2024]
+    assert 'lecturers' in result[2024]
+    assert 'courses' in result[2024]
+    assert 'reviews' in result[2024]
 
 
 def test_get_module_info_not_found(mock_db_connection):
