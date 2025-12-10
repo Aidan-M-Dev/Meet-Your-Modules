@@ -86,15 +86,19 @@ class ProductionConfig(Config):
 
     # Security - Require secret key in production
     SECRET_KEY = os.getenv('SECRET_KEY')
-    if not SECRET_KEY or SECRET_KEY == 'dev-secret-key-change-in-production':
-        raise ValueError(
-            "SECRET_KEY must be set in production! "
-            "Generate one with: python -c 'import secrets; print(secrets.token_hex(32))'"
-        )
 
-    # Require Google API key in production
-    if not Config.GOOGLE_API_KEY:
-        raise ValueError("GOOGLE_API_KEY must be set in production!")
+    @classmethod
+    def validate(cls):
+        """Validate production configuration. Called when config is actually used."""
+        if not cls.SECRET_KEY or cls.SECRET_KEY == 'dev-secret-key-change-in-production':
+            raise ValueError(
+                "SECRET_KEY must be set in production! "
+                "Generate one with: python -c 'import secrets; print(secrets.token_hex(32))'"
+            )
+
+        # Require Google API key in production
+        if not cls.GOOGLE_API_KEY:
+            raise ValueError("GOOGLE_API_KEY must be set in production!")
 
 
 class TestingConfig(Config):
@@ -135,4 +139,10 @@ def get_config():
     Defaults to DevelopmentConfig if FLASK_ENV is not set.
     """
     env = os.getenv('FLASK_ENV', 'development').lower()
-    return config_by_name.get(env, config_by_name['default'])
+    config = config_by_name.get(env, config_by_name['default'])
+
+    # Validate production config when it's actually used
+    if env == 'production' and hasattr(config, 'validate'):
+        config.validate()
+
+    return config
