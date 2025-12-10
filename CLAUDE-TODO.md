@@ -101,7 +101,7 @@ Secure admin panel with role-based access control. Currently, admin panel is pub
 
 **Acceptance Criteria**:
 - [ ] `admins` table with username, password_hash, role (standard/senior)
-- [ ] Admin login page at `/admin/login`
+- [ ] Admin login page at `/admin/login` (no obvious button/link - admins navigate directly)
 - [ ] Session/JWT-based authentication
 - [ ] Admin-only route guards for `/admin` pages
 - [ ] Admin middleware for all `/api/admin/*` endpoints
@@ -109,7 +109,8 @@ Secure admin panel with role-based access control. Currently, admin panel is pub
 - [ ] Standard admin can only moderate reviews
 - [ ] Admin management page (senior admins only)
 - [ ] Audit log for admin actions (who accepted/rejected what)
-- [ ] Logout functionality
+- [ ] Obvious logout button on admin pages
+- [ ] No "Admin" links visible to regular users
 
 **Technical Notes**:
 - Install `flask-jwt-extended` or use Flask sessions
@@ -333,6 +334,257 @@ Implement lightweight anonymous user sessions to preserve search preferences and
 - Session IDs are random, not tied to identity
 - Used only for UX and abuse prevention
 - Add privacy policy note if needed
+
+---
+
+### [MYM-008] Report Reviews with Categorized Reasons
+**Type**: Feature
+**Priority**: P1 (High)
+**Status**: Backlog
+**Estimated Effort**: S
+**Dependencies**: None
+
+**Description**:
+Enhance reporting system to require users to select a specific reason when reporting reviews. This helps admins prioritize and understand report patterns.
+
+**Acceptance Criteria**:
+- [ ] Report modal/dialog with reason selection (required)
+- [ ] Four report categories: "Offensive", "Attacking a person", "Untrue", "Not relevant"
+- [ ] Store report reason in database
+- [ ] Display report reasons to admins in moderation panel
+- [ ] Group reported reviews by reason type
+- [ ] Update `reviews` table to track report reasons (array or separate table)
+
+**Technical Notes**:
+- Add `report_reasons` JSON column to reviews table OR create `review_reports` table
+- Report reasons table: `id`, `review_id`, `session_id`, `reason`, `created_at`
+- Update `/api/reportReview` endpoint to accept reason parameter
+- Show reason breakdown in admin panel (e.g., "3 reports: 2x Offensive, 1x Untrue")
+
+**Related Files**:
+- `backend/sql_statements/07_report_reasons.sql` - Migration
+- `backend/db.py` - Update `report_review()` function
+- `backend/app.py` - Update `/api/reportReview` endpoint
+- `frontend/src/pages/module/ModulePage.vue` - Add report modal
+- `frontend/src/pages/admin/AdminPage.vue` - Display reasons
+
+**Testing**:
+- [ ] Cannot report without selecting a reason
+- [ ] Report reasons stored correctly
+- [ ] Admin can see breakdown of report reasons
+- [ ] Multiple reports with different reasons tracked
+
+---
+
+### [MYM-009] AI-Generated Review Summaries
+**Type**: Feature
+**Priority**: P2 (Medium)
+**Status**: Backlog
+**Estimated Effort**: L
+**Dependencies**: None
+
+**Description**:
+Generate AI-powered summaries of all reviews for each module to help students quickly understand general trends. Summaries are cached and only regenerated when there are new reviews (with 30-minute cooldown).
+
+**Acceptance Criteria**:
+- [ ] Generate short, factual bullet-point summaries using Google Gemini
+- [ ] Cache summaries in database with timestamp
+- [ ] Regenerate only when: (1) new reviews exist AND (2) 30+ mins since last generation
+- [ ] Non-blocking: summary loads asynchronously, doesn't delay page
+- [ ] Display loading skeleton while generating
+- [ ] Fallback if AI fails: show message or skip summary
+- [ ] Summary focuses on: common themes, workload, difficulty, teaching quality
+- [ ] Maximum 3-5 bullet points
+
+**Technical Notes**:
+- Add `module_summaries` table: `module_id`, `summary`, `generated_at`, `review_count_at_generation`
+- Backend checks if summary needs refresh before serving module page
+- Generate in background task (or accept slight delay on first load)
+- Use prompt like: "Summarize these module reviews in 3-5 factual bullet points covering workload, difficulty, and teaching quality"
+- Consider rate limits on Google Gemini API
+
+**Related Files**:
+- `backend/sql_statements/08_module_summaries.sql` - Migration
+- `backend/lib.py` - Add `generate_module_summary()` function
+- `backend/db.py` - Add summary management functions
+- `backend/app.py` - Add `/api/getModuleSummary/{module_id}` endpoint
+- `frontend/src/pages/module/ModulePage.vue` - Display summary section
+
+**Testing**:
+- [ ] Summary generates correctly for modules with reviews
+- [ ] Summary doesn't regenerate within 30 minutes
+- [ ] Summary regenerates when new reviews added (after 30 min cooldown)
+- [ ] Page loads even if summary generation fails
+- [ ] Summary is factual and helpful
+
+**Performance**:
+- Consider caching strategy (Redis or PostgreSQL)
+- Background job queue for generation (optional)
+
+---
+
+### [MYM-010] Admin Review Management Interface
+**Type**: Feature
+**Priority**: P1 (High)
+**Status**: Backlog
+**Estimated Effort**: M
+**Dependencies**: [MYM-001]
+
+**Description**:
+Create a comprehensive admin interface for searching, filtering, and managing ALL reviews (not just pending/reported). Admins should be able to find and manipulate any review with a common, reusable component.
+
+**Acceptance Criteria**:
+- [ ] Admin page showing all reviews (paginated)
+- [ ] Search reviews by: module code, module name, review text, date range
+- [ ] Filter by: status (published/pending/rejected), rating, academic year
+- [ ] Sort by: date, rating, report count, likes/dislikes
+- [ ] Reusable `ReviewCard` component for displaying reviews
+- [ ] Actions on each review: Accept, Reject, Delete (with confirmation)
+- [ ] Edit review text inline (admin override)
+- [ ] View full review history/audit trail
+- [ ] Bulk actions: select multiple reviews, accept/reject all
+
+**Technical Notes**:
+- Create `frontend/src/components/admin/ReviewCard.vue` - reusable component
+- Use same component in pending, rejected, and all-reviews pages
+- Add `/api/admin/allReviews` endpoint with search/filter parameters
+- Consider full-text search on PostgreSQL (or use ILIKE for simplicity)
+- Add audit trail when admin edits review content
+
+**Related Files**:
+- `frontend/src/components/admin/ReviewCard.vue` - New component
+- `frontend/src/pages/admin/AllReviewsPage.vue` - New page
+- `backend/app.py` - Add `/api/admin/allReviews` endpoint
+- `backend/db.py` - Add `search_all_reviews()` function
+- Update existing admin pages to use `ReviewCard` component
+
+**Testing**:
+- [ ] Search finds reviews correctly
+- [ ] Filters work in combination
+- [ ] Bulk actions work correctly
+- [ ] Review edits are audited
+- [ ] Pagination works smoothly
+
+---
+
+### [MYM-011] Admin Module Page with Review Freeze
+**Type**: Feature
+**Priority**: P2 (Medium)
+**Status**: Backlog
+**Estimated Effort**: M
+**Dependencies**: [MYM-001], [MYM-010]
+
+**Description**:
+Create an admin-only version of the module page where admins can freeze reviews (prevent new submissions) and manipulate existing reviews in context.
+
+**Acceptance Criteria**:
+- [ ] Admin module page at `/admin/module/:code`
+- [ ] Toggle to freeze/unfreeze reviews for specific module iteration
+- [ ] Visual indicator when reviews are frozen
+- [ ] All existing reviews displayed with admin controls inline
+- [ ] Use `ReviewCard` component from [MYM-010]
+- [ ] Quickly accept/reject/edit reviews without leaving page
+- [ ] Show freeze status to users (e.g., "Reviews closed for this module")
+- [ ] Frozen modules don't show review submission form
+
+**Technical Notes**:
+- Add `is_frozen` boolean to `module_iterations` table
+- Add `/api/admin/freezeModule/{iteration_id}` endpoint
+- Check freeze status in `/api/submitReview` endpoint
+- Display freeze banner on public module page
+- Admin module page combines public view with admin controls
+
+**Related Files**:
+- `backend/sql_statements/09_freeze_modules.sql` - Migration
+- `backend/db.py` - Add freeze/unfreeze functions
+- `backend/app.py` - Add freeze endpoints, check in submit
+- `frontend/src/pages/admin/AdminModulePage.vue` - New component
+- `frontend/src/pages/module/ModulePage.vue` - Show freeze status
+
+**Testing**:
+- [ ] Frozen modules reject new review submissions
+- [ ] Freeze status displayed correctly to users
+- [ ] Admin can unfreeze modules
+- [ ] Admin controls work on admin module page
+
+---
+
+### [MYM-012] Site Information Pop-up
+**Type**: Feature
+**Priority**: P2 (Medium)
+**Status**: Backlog
+**Estimated Effort**: XS
+**Dependencies**: [MYM-007]
+
+**Description**:
+Add an expandable/collapsible information pop-up on the main page that auto-expands on first visit (start of anonymous session) and can be manually toggled afterwards.
+
+**Acceptance Criteria**:
+- [ ] Pop-up component with expand/collapse button
+- [ ] Auto-expands on first session visit (track in session storage)
+- [ ] Contains placeholder "lorem ipsum" text (to be updated later)
+- [ ] Stays collapsed on subsequent page loads
+- [ ] Positioned unobtrusively (corner or bottom)
+- [ ] Smooth expand/collapse animation
+- [ ] "Don't show again" option (optional)
+
+**Technical Notes**:
+- Use localStorage or session storage to track if user has seen it
+- Alternative: use anonymous session from [MYM-007]
+- Position: fixed bottom-right or top-right corner
+- Use Tailwind transitions for animation
+
+**Related Files**:
+- `frontend/src/components/InfoPopup.vue` - New component
+- `frontend/src/pages/search/SearchPage.vue` - Add popup
+
+**Testing**:
+- [ ] Popup auto-expands on first visit
+- [ ] Stays collapsed on subsequent visits
+- [ ] Expand/collapse works smoothly
+- [ ] Doesn't block important UI elements
+
+---
+
+### [MYM-013] Seasonal Easter Eggs on Logo
+**Type**: Feature
+**Priority**: P3 (Low)
+**Status**: Backlog
+**Estimated Effort**: S
+**Dependencies**: None
+
+**Description**:
+Add seasonal/holiday easter eggs to the "O" in the site logo (e.g., Christmas ornament, Halloween pumpkin, graduation cap).
+
+**Acceptance Criteria**:
+- [ ] System detects current date/season
+- [ ] Swaps "O" logo for themed version on special dates
+- [ ] Predefined seasons/holidays: Christmas, Halloween, Easter, Graduation (June), etc.
+- [ ] Themed SVG/images for each season
+- [ ] Easy to add new seasonal themes
+- [ ] Performance: minimal overhead, no API calls
+
+**Technical Notes**:
+- Create date-checking function in frontend
+- Store themed "O" images in `/frontend/public/assets/seasonal/`
+- Configuration file for dates: `{ start: '12-20', end: '12-26', image: 'christmas-o.svg' }`
+- Component checks dates on mount
+- Consider caching current theme in localStorage
+
+**Related Files**:
+- `frontend/src/components/Logo.vue` - Update logo component
+- `frontend/src/utils/seasonalThemes.js` - Date configuration
+- `frontend/public/assets/seasonal/` - Themed images
+
+**Testing**:
+- [ ] Correct theme displays for date ranges
+- [ ] Falls back to normal "O" outside special dates
+- [ ] Easy to add new themes
+- [ ] No performance impact
+
+**Future Ideas**:
+- School-specific themes (e.g., university anniversary)
+- User toggle to disable easter eggs
 
 ---
 
