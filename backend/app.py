@@ -32,6 +32,15 @@ from validators import (
     validate_integer_id,
     validate_boolean
 )
+from errors import (
+    register_error_handlers,
+    handle_validation_error,
+    handle_not_found,
+    handle_internal_error,
+    handle_database_error,
+    handle_not_implemented,
+    ErrorCode
+)
 
 # Load .env from repo root if present so frontend and backend can share the same env file.
 # Fallback to default behaviour (load from CWD) if repo-root .env is not present.
@@ -65,6 +74,9 @@ limiter = Limiter(
 
 # Initialize database connection pool
 initialize_connection_pool()
+
+# Register global error handlers
+register_error_handlers(app)
 
 # Log application startup
 env_name = os.getenv('FLASK_ENV', 'development')
@@ -105,6 +117,7 @@ def health_db():
 @app.route("/api/searchModulesByCode/<module_code>")
 @limiter.limit("30 per minute")
 def search_modules_by_code_route(module_code):
+    """Search for modules by module code."""
     try:
         # Validate module code
         validated_code = validate_module_code(module_code)
@@ -112,21 +125,20 @@ def search_modules_by_code_route(module_code):
 
         modules = search_modules_by_code(validated_code)
         logger.info(f"Found {len(modules)} module(s) with code: {validated_code}")
-        return jsonify({"modules": modules}), 200
-    except ValidationError as e:
-        logger.warning(f"Validation error searching module by code '{module_code}': {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"modules": modules, "status": "success"}), 200
+    except ValidationError:
+        raise  # Let global handler catch it
     except Exception as e:
-        logger.error(f"Error searching module by code '{module_code}': {str(e)}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        return handle_internal_error(e, f"searching for module code '{module_code}'")
 
 @app.route("/api/searchModules")
 @limiter.limit("30 per minute")
 def search_modules_route():
+    """Search for modules by name, code, or lecturer."""
     try:
         search_term = request.args.get('q', '')
         if not search_term:
-            return jsonify({"modules": []}), 200
+            return jsonify({"modules": [], "status": "success"}), 200
 
         # Validate search query
         validated_query = validate_search_query(search_term)
@@ -134,44 +146,43 @@ def search_modules_route():
 
         modules = search_modules_by_name(validated_query)
         logger.info(f"Search for '{validated_query}' returned {len(modules)} module(s)")
-        return jsonify({"modules": modules}), 200
-    except ValidationError as e:
-        logger.warning(f"Validation error searching modules: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"modules": modules, "status": "success"}), 200
+    except ValidationError:
+        raise  # Let global handler catch it
     except Exception as e:
-        logger.error(f"Error searching modules: {str(e)}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        return handle_internal_error(e, "searching modules")
 
 @app.route("/api/courses")
 def get_courses_route():
+    """Get all available courses."""
     try:
         courses = get_all_courses()
-        return jsonify({"courses": courses}), 200
+        return jsonify({"courses": courses, "status": "success"}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        return handle_database_error(e, "fetching courses")
 
 @app.route("/api/getModuleInfo/<module_id>")
 @limiter.limit("60 per minute")
 def get_module_info_route(module_id):
+    """Get detailed information for a specific module including all iterations."""
     try:
         # Validate module ID
         validated_id = validate_integer_id(module_id, "Module ID")
         years_info = get_module_info_with_iterations(validated_id)
 
         if years_info is None:
-            return jsonify({"error": "Module not found"}), 404
+            return handle_not_found("Module")
 
-        return jsonify({"yearsInfo": years_info}), 200
-    except ValidationError as e:
-        logger.warning(f"Validation error getting module info: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"yearsInfo": years_info, "status": "success"}), 200
+    except ValidationError:
+        raise  # Let global handler catch it
     except Exception as e:
-        logger.error(f"Error getting module info: {str(e)}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        return handle_internal_error(e, "fetching module info")
 
 @app.route("/api/likeReview/<review_id>/<like_or_dislike>")
 @limiter.limit("10 per minute")
 def like_review_route(review_id, like_or_dislike):
+    """Like or dislike a review."""
     try:
         # Validate review ID
         validated_id = validate_integer_id(review_id, "Review ID")
@@ -181,34 +192,32 @@ def like_review_route(review_id, like_or_dislike):
 
         # Call the database function to like or dislike the review
         result = like_or_dislike_review(validated_id, like_bool)
-        return jsonify({"result": result}), 200
-    except ValidationError as e:
-        logger.warning(f"Validation error liking review: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"result": result, "status": "success"}), 200
+    except ValidationError:
+        raise  # Let global handler catch it
     except Exception as e:
-        logger.error(f"Error liking review: {str(e)}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        return handle_database_error(e, "updating review likes")
 
 @app.route("/api/reportReview/<review_id>")
 @limiter.limit("5 per hour")  # Strict limit to prevent abuse
 def report_review_route(review_id):
+    """Report a review as inappropriate."""
     try:
         # Validate review ID
         validated_id = validate_integer_id(review_id, "Review ID")
 
         # Call the database function to report the review
         result = report_review(validated_id)
-        return jsonify({"result": result}), 200
-    except ValidationError as e:
-        logger.warning(f"Validation error reporting review: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"result": result, "status": "success"}), 200
+    except ValidationError:
+        raise  # Let global handler catch it
     except Exception as e:
-        logger.error(f"Error reporting review: {str(e)}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        return handle_database_error(e, "reporting review")
     
 @app.route("/api/submitReview/<module_iteration_id>", methods=["POST"])
 @limiter.limit("5 per hour")  # Strict limit to prevent spam
 def submit_review_route(module_iteration_id):
+    """Submit a new review for a module iteration."""
     try:
         # Validate module iteration ID
         validated_iteration_id = validate_integer_id(module_iteration_id, "Module iteration ID")
@@ -230,41 +239,43 @@ def submit_review_route(module_iteration_id):
         # Submit review with sanitized data
         result = submit_review(validated_iteration_id, sanitized_text, validated_rating, reasonable)
         logger.info(f"Review submitted successfully for iteration {validated_iteration_id}, status={'published' if reasonable else 'pending moderation'}")
-        return jsonify({"result": result}), 200
-    except ValidationError as e:
-        logger.warning(f"Validation error submitting review: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"result": result, "status": "success"}), 200
+    except ValidationError:
+        raise  # Let global handler catch it
     except ValueError as e:
-        logger.warning(f"Validation error submitting review for iteration {module_iteration_id}: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        # ValueError from database (e.g., module iteration not found)
+        return handle_validation_error(str(e))
     except Exception as e:
-        logger.error(f"Error submitting review for iteration {module_iteration_id}: {str(e)}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        return handle_internal_error(e, "submitting review")
 
 @app.route("/api/user")
 def get_user():
+    """Get current user information (not yet implemented)."""
     # TODO: Implement authentication with a local auth system
-    return jsonify({"error": "Authentication not yet implemented"}), 501
+    return handle_not_implemented()
 
 @app.route("/api/admin/pendingReviews")
 def get_pending_reviews_route():
+    """Get all reviews pending admin moderation."""
     try:
         reviews = get_pending_reviews()
-        return jsonify({"reviews": reviews}), 200
+        return jsonify({"reviews": reviews, "status": "success"}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        return handle_database_error(e, "fetching pending reviews")
 
 @app.route("/api/admin/rejectedReviews")
 def get_rejected_reviews_route():
+    """Get all rejected reviews."""
     try:
         reviews = get_rejected_reviews()
-        return jsonify({"reviews": reviews}), 200
+        return jsonify({"reviews": reviews, "status": "success"}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        return handle_database_error(e, "fetching rejected reviews")
 
 @app.route("/api/admin/acceptReview/<review_id>", methods=["POST"])
 @limiter.limit("100 per hour")
 def accept_review_route(review_id):
+    """Admin endpoint to accept a pending or reported review."""
     try:
         # Validate review ID
         validated_id = validate_integer_id(review_id, "Review ID")
@@ -272,17 +283,16 @@ def accept_review_route(review_id):
         logger.info(f"Admin accepting review {validated_id}")
         result = accept_review(validated_id)
         logger.info(f"Review {validated_id} accepted successfully")
-        return jsonify({"result": result}), 200
-    except ValidationError as e:
-        logger.warning(f"Validation error accepting review: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"result": result, "status": "success"}), 200
+    except ValidationError:
+        raise  # Let global handler catch it
     except Exception as e:
-        logger.error(f"Error accepting review {review_id}: {str(e)}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        return handle_database_error(e, f"accepting review {review_id}")
 
 @app.route("/api/admin/rejectReview/<review_id>", methods=["POST"])
 @limiter.limit("100 per hour")
 def reject_review_route(review_id):
+    """Admin endpoint to reject a pending or reported review."""
     try:
         # Validate review ID
         validated_id = validate_integer_id(review_id, "Review ID")
@@ -290,13 +300,11 @@ def reject_review_route(review_id):
         logger.info(f"Admin rejecting review {validated_id}")
         result = reject_review(validated_id)
         logger.info(f"Review {validated_id} rejected successfully")
-        return jsonify({"result": result}), 200
-    except ValidationError as e:
-        logger.warning(f"Validation error rejecting review: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"result": result, "status": "success"}), 200
+    except ValidationError:
+        raise  # Let global handler catch it
     except Exception as e:
-        logger.error(f"Error rejecting review {review_id}: {str(e)}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        return handle_database_error(e, f"rejecting review {review_id}")
 
 
 if __name__ == "__main__":
