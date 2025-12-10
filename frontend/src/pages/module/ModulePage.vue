@@ -142,7 +142,7 @@
             <div class="year-header">
               <span class="year">{{ yearGroup.yearFormatted }}</span>
               <span v-if="yearGroup.lecturerChange" class="badge badge-purple">
-                👤 Lecturer changed: {{ yearGroup.lecturerChange }}
+                👤 Lecturer(s) changed: {{ yearGroup.lecturerChange }}
               </span>
             </div>
 
@@ -283,7 +283,7 @@ export default {
         const currentLecturers = yearData.lecturers?.map(l => l.name).sort().join(', ')
 
         if (index > 0 && previousLecturers && currentLecturers && previousLecturers !== currentLecturers) {
-          lecturerChange = currentLecturers || 'Not available'
+          lecturerChange = currentLecturers + " --> " + previousLecturers || 'Not available'
         }
 
         result.push({

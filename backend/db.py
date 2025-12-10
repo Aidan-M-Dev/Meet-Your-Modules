@@ -354,12 +354,12 @@ def report_review(review_id):
 
     cur.execute(
         "UPDATE reviews SET report_count = report_count + 1 WHERE id = %s",
-        (review_id)
+        (review_id,)
     )
 
     cur.execute(
         "SELECT report_count, report_tolerance FROM reviews WHERE id = %s",
-        (review_id)
+        (review_id,)
     )
 
     result = cur.fetchone()
@@ -514,3 +514,137 @@ def reject_review(review_id):
     conn.close()
 
     return True
+
+def process_programme_spec_data(pdf_data):
+    """
+    Process and store programme specification data extracted from PDF.
+
+    Args:
+        pdf_data (dict): Dictionary containing programme, department, and module data
+
+    Returns:
+        dict: Summary of what was added/updated
+    """
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    result = {
+        "programme": pdf_data.get("programme", {}),
+        "department": pdf_data.get("department", {}),
+        "modules_added": 0,
+        "modules_updated": 0,
+        "errors": []
+    }
+
+    try:
+        # 1. Insert or get department
+        department_id = None
+        if pdf_data.get("department", {}).get("name"):
+            dept_name = pdf_data["department"]["name"]
+
+            # Check if department exists
+            cur.execute("SELECT id FROM departments WHERE name = %s", (dept_name,))
+            dept = cur.fetchone()
+
+            if dept:
+                department_id = dept['id']
+            else:
+                # Insert new department
+                cur.execute(
+                    "INSERT INTO departments (name) VALUES (%s) RETURNING id",
+                    (dept_name,)
+                )
+                department_id = cur.fetchone()['id']
+
+        # 2. Insert or get course
+        course_id = None
+        if pdf_data.get("courses") and len(pdf_data["courses"]) > 0:
+            course_data = pdf_data["courses"][0]
+            course_title = course_data.get("title", "")
+
+            # Check if course exists
+            cur.execute("SELECT id FROM courses WHERE title = %s", (course_title,))
+            course = cur.fetchone()
+
+            if course:
+                course_id = course['id']
+            else:
+                # Insert new course
+                cur.execute(
+                    "INSERT INTO courses (home_department_id, title) VALUES (%s, %s) RETURNING id",
+                    (department_id, course_title)
+                )
+                course_id = cur.fetchone()['id']
+
+        # 3. Process modules
+        academic_year = pdf_data.get("programme", {}).get("academic_year")
+
+        for year_key, year_data in pdf_data.get("modules_by_year", {}).items():
+            for module_data in year_data.get("modules", []):
+                try:
+                    module_code = module_data.get("code")
+                    module_name = module_data.get("title")
+                    credits = module_data.get("credits", 0)
+
+                    if not module_code or not module_name:
+                        continue
+
+                    # Check if module exists
+                    cur.execute("SELECT id FROM modules WHERE code = %s", (module_code,))
+                    existing_module = cur.fetchone()
+
+                    if existing_module:
+                        module_id = existing_module['id']
+                        # Update module info
+                        cur.execute(
+                            "UPDATE modules SET name = %s, credits = %s, department_id = %s WHERE id = %s",
+                            (module_name, credits, department_id, module_id)
+                        )
+                        result["modules_updated"] += 1
+                    else:
+                        # Insert new module
+                        cur.execute(
+                            "INSERT INTO modules (department_id, code, name, credits) VALUES (%s, %s, %s, %s) RETURNING id",
+                            (department_id, module_code, module_name, credits)
+                        )
+                        module_id = cur.fetchone()['id']
+                        result["modules_added"] += 1
+
+                    # Create module iteration if academic year is provided
+                    if academic_year and module_id:
+                        # Check if this iteration already exists
+                        cur.execute(
+                            "SELECT id FROM module_iterations WHERE module_id = %s AND academic_year_start_year = %s",
+                            (module_id, academic_year)
+                        )
+                        iteration = cur.fetchone()
+
+                        if not iteration:
+                            # Insert module iteration
+                            cur.execute(
+                                "INSERT INTO module_iterations (module_id, academic_year_start_year) VALUES (%s, %s) RETURNING id",
+                                (module_id, academic_year)
+                            )
+                            iteration_id = cur.fetchone()['id']
+
+                            # Link course to iteration if we have a course
+                            if course_id and iteration_id:
+                                cur.execute(
+                                    "INSERT INTO module_iterations_courses_links (module_iteration_id, course_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                                    (iteration_id, course_id)
+                                )
+
+                except Exception as e:
+                    result["errors"].append(f"Error processing module {module_code}: {str(e)}")
+                    continue
+
+        conn.commit()
+
+    except Exception as e:
+        conn.rollback()
+        raise Exception(f"Database error: {str(e)}")
+    finally:
+        cur.close()
+        conn.close()
+
+    return result
