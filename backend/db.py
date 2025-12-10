@@ -2,7 +2,9 @@
 
 import os
 import psycopg2
+from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
+from contextlib import contextmanager
 
 from lib import notify_admins_of_reported_review
 from logger import setup_logger
@@ -12,16 +14,95 @@ logger = setup_logger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# Connection pool configuration
+MIN_CONNECTIONS = int(os.getenv("DB_POOL_MIN", 2))
+MAX_CONNECTIONS = int(os.getenv("DB_POOL_MAX", 10))
 
-def get_db_connection():
-    """Create a new database connection."""
+# Initialize connection pool
+_connection_pool = None
+
+
+def initialize_connection_pool():
+    """
+    Initialize the database connection pool.
+
+    This should be called once at application startup.
+    """
+    global _connection_pool
+
+    if _connection_pool is not None:
+        logger.warning("Connection pool already initialized")
+        return
+
     try:
-        conn = psycopg2.connect(DATABASE_URL)
-        logger.debug("Database connection established")
-        return conn
+        _connection_pool = pool.SimpleConnectionPool(
+            MIN_CONNECTIONS,
+            MAX_CONNECTIONS,
+            DATABASE_URL
+        )
+        logger.info(f"Database connection pool initialized (min={MIN_CONNECTIONS}, max={MAX_CONNECTIONS})")
     except psycopg2.Error as e:
-        logger.error(f"Failed to connect to database: {str(e)}", exc_info=True)
+        logger.error(f"Failed to initialize connection pool: {str(e)}", exc_info=True)
         raise
+
+
+def get_connection_pool():
+    """Get the connection pool, initializing it if necessary."""
+    global _connection_pool
+
+    if _connection_pool is None:
+        initialize_connection_pool()
+
+    return _connection_pool
+
+
+@contextmanager
+def get_db_connection():
+    """
+    Get a database connection from the pool.
+
+    Use as a context manager to ensure connections are returned to the pool:
+        with get_db_connection() as conn:
+            # use connection
+
+    Returns:
+        psycopg2.connection: Database connection from pool
+    """
+    conn_pool = get_connection_pool()
+    conn = None
+
+    try:
+        conn = conn_pool.getconn()
+        if conn is None:
+            raise psycopg2.Error("Unable to get connection from pool")
+
+        logger.debug("Database connection obtained from pool")
+        yield conn
+
+    except psycopg2.Error as e:
+        logger.error(f"Database connection error: {str(e)}", exc_info=True)
+        if conn:
+            conn.rollback()
+        raise
+
+    finally:
+        if conn:
+            conn_pool.putconn(conn)
+            logger.debug("Database connection returned to pool")
+
+
+def close_connection_pool():
+    """
+    Close all connections in the pool.
+
+    Should be called on application shutdown.
+    """
+    global _connection_pool
+
+    if _connection_pool is not None:
+        _connection_pool.closeall()
+        _connection_pool = None
+        logger.info("Database connection pool closed")
 
 
 def search_modules_by_code(module_code):

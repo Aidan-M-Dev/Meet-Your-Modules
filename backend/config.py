@@ -15,6 +15,10 @@ class Config:
     # Database
     DATABASE_URL = os.getenv('DATABASE_URL')
 
+    # Database Connection Pool
+    DB_POOL_MIN = int(os.getenv('DB_POOL_MIN', 2))
+    DB_POOL_MAX = int(os.getenv('DB_POOL_MAX', 10))
+
     # Frontend/Backend
     FRONTEND_ADDRESS = os.getenv('FRONTEND_ADDRESS', 'localhost')
     FRONTEND_PORT = os.getenv('FRONTEND_PORT', '5173')

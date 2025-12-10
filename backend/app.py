@@ -5,7 +5,21 @@ from pathlib import Path
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from db import search_modules_by_code, search_modules_by_name, get_module_info_with_iterations, get_all_courses, like_or_dislike_review, report_review, submit_review, get_pending_reviews, get_rejected_reviews, accept_review, reject_review
+from db import (
+    initialize_connection_pool,
+    close_connection_pool,
+    search_modules_by_code,
+    search_modules_by_name,
+    get_module_info_with_iterations,
+    get_all_courses,
+    like_or_dislike_review,
+    report_review,
+    submit_review,
+    get_pending_reviews,
+    get_rejected_reviews,
+    accept_review,
+    reject_review
+)
 from lib import sentiment_review
 from logger import setup_logger
 from config import get_config
@@ -49,6 +63,9 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
+# Initialize database connection pool
+initialize_connection_pool()
+
 # Log application startup
 env_name = os.getenv('FLASK_ENV', 'development')
 logger.info(f"Starting Meet Your Modules backend server")
@@ -58,9 +75,32 @@ logger.info(f"CORS enabled for: {', '.join(Config.CORS_ORIGINS)}")
 logger.info(f"Rate limiting enabled: 200/hour, 50/minute per IP")
 
 
+# Shutdown handler
+import atexit
+atexit.register(close_connection_pool)
+
+
 @app.route("/api/health")
 def health():
+    """Basic health check endpoint."""
     return jsonify({"status": "ok"}), 200
+
+
+@app.route("/api/health/db")
+def health_db():
+    """Database health check endpoint."""
+    try:
+        from db import get_db_connection
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                result = cur.fetchone()
+                if result and result[0] == 1:
+                    return jsonify({"status": "ok", "database": "connected"}), 200
+        return jsonify({"status": "error", "database": "query failed"}), 500
+    except Exception as e:
+        logger.error(f"Database health check failed: {str(e)}", exc_info=True)
+        return jsonify({"status": "error", "database": "disconnected", "error": str(e)}), 500
 
 @app.route("/api/searchModulesByCode/<module_code>")
 @limiter.limit("30 per minute")
