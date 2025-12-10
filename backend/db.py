@@ -5,14 +5,23 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 from lib import notify_admins_of_reported_review
+from logger import setup_logger
+
+# Set up logger
+logger = setup_logger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 def get_db_connection():
     """Create a new database connection."""
-    conn = psycopg2.connect(DATABASE_URL)
-    return conn
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        logger.debug("Database connection established")
+        return conn
+    except psycopg2.Error as e:
+        logger.error(f"Failed to connect to database: {str(e)}", exc_info=True)
+        raise
 
 
 def search_modules_by_code(module_code):
@@ -342,6 +351,7 @@ def report_review(review_id):
     Returns:
         bool: True if successful
     """
+    logger.info(f"Review {review_id} reported by user")
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
@@ -358,12 +368,15 @@ def report_review(review_id):
     result = cur.fetchone()
 
     if result['report_count'] >= result['report_tolerance']:
+        logger.warning(f"Review {review_id} report count ({result['report_count']}) exceeded tolerance ({result['report_tolerance']}), flagging for moderation")
         cur.execute(
             "UPDATE reviews SET moderation_status = %s WHERE id = %s",
             ('reported', review_id)
         )
 
         notify_admins_of_reported_review(review_id)
+    else:
+        logger.debug(f"Review {review_id} report count: {result['report_count']}/{result['report_tolerance']}")
 
     conn.commit()
     cur.close()
@@ -391,6 +404,7 @@ def submit_review(module_iteration_id, text, rating, reasonable):
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     # Validate that the module iteration exists
+    logger.debug(f"Validating module iteration {module_iteration_id} exists")
     cur.execute(
         "SELECT id FROM module_iterations WHERE id = %s",
         (module_iteration_id,)
@@ -398,19 +412,24 @@ def submit_review(module_iteration_id, text, rating, reasonable):
     iteration = cur.fetchone()
 
     if not iteration:
+        logger.warning(f"Attempted to submit review for non-existent iteration {module_iteration_id}")
         cur.close()
         conn.close()
         raise ValueError(f"Module iteration {module_iteration_id} not found. Cannot submit review for a module that hasn't been offered yet.")
 
+    status = 'published' if reasonable else 'automatic_review'
+    logger.info(f"Inserting review for iteration {module_iteration_id}, rating={rating}, status={status}")
+
     cur.execute(
         "INSERT INTO reviews (module_iteration_id, overall_rating, comment, moderation_status, like_dislike) VALUES (%s, %s, %s, %s, 0)",
-        (module_iteration_id, rating, text, 'published' if reasonable else 'automatic_review')
+        (module_iteration_id, rating, text, status)
     )
 
     conn.commit()
     cur.close()
     conn.close()
 
+    logger.info(f"Review successfully saved for iteration {module_iteration_id}")
     return True
 
 

@@ -5,6 +5,10 @@ from pathlib import Path
 from flask_cors import CORS
 from db import search_modules_by_code, search_modules_by_name, get_module_info_with_iterations, get_all_courses, like_or_dislike_review, report_review, submit_review, get_pending_reviews, get_rejected_reviews, accept_review, reject_review
 from lib import sentiment_review
+from logger import setup_logger
+
+# Set up logger
+logger = setup_logger(__name__)
 
 # Load .env from repo root if present so frontend and backend can share the same env file.
 # Fallback to default behaviour (load from CWD) if repo-root .env is not present.
@@ -18,6 +22,10 @@ else:
 app = Flask(__name__)
 CORS(app, origins=f"http://{os.getenv('FRONTEND_ADDRESS')}:{os.getenv('FRONTEND_PORT')}")
 
+# Log application startup
+logger.info(f"Starting Meet Your Modules backend server")
+logger.info(f"CORS enabled for: http://{os.getenv('FRONTEND_ADDRESS')}:{os.getenv('FRONTEND_PORT')}")
+
 
 @app.route("/api/health")
 def health():
@@ -26,9 +34,12 @@ def health():
 @app.route("/api/searchModulesByCode/<module_code>")
 def search_modules_by_code_route(module_code):
     try:
+        logger.debug(f"Searching for module by code: {module_code}")
         modules = search_modules_by_code(module_code)
+        logger.info(f"Found {len(modules)} module(s) with code: {module_code}")
         return jsonify({"modules": modules}), 200
     except Exception as e:
+        logger.error(f"Error searching module by code '{module_code}': {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 400
 
 @app.route("/api/searchModules")
@@ -38,9 +49,12 @@ def search_modules_route():
         if not search_term:
             return jsonify({"modules": []}), 200
 
+        logger.debug(f"Searching modules with term: {search_term}")
         modules = search_modules_by_name(search_term)
+        logger.info(f"Search for '{search_term}' returned {len(modules)} module(s)")
         return jsonify({"modules": modules}), 200
     except Exception as e:
+        logger.error(f"Error searching modules with term '{search_term}': {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 400
 
 @app.route("/api/courses")
@@ -88,10 +102,19 @@ def submit_review_route(module_iteration_id):
     try:
         rating = request.args.get("overall_rating")
         text = request.form.get("reviewText")
+        logger.info(f"Submitting review for module_iteration_id={module_iteration_id}, rating={rating}")
+
         reasonable = sentiment_review(text)
-        result = submit_review(module_iteration_id, text, rating, reasonable) 
+        logger.debug(f"AI sentiment analysis result: {'appropriate' if reasonable else 'flagged'}")
+
+        result = submit_review(module_iteration_id, text, rating, reasonable)
+        logger.info(f"Review submitted successfully for iteration {module_iteration_id}, status={'published' if reasonable else 'pending moderation'}")
         return jsonify({"result": result}), 200
+    except ValueError as e:
+        logger.warning(f"Validation error submitting review for iteration {module_iteration_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
+        logger.error(f"Error submitting review for iteration {module_iteration_id}: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 400
 
 @app.route("/api/user")
@@ -118,19 +141,27 @@ def get_rejected_reviews_route():
 @app.route("/api/admin/acceptReview/<review_id>", methods=["POST"])
 def accept_review_route(review_id):
     try:
+        logger.info(f"Admin accepting review {review_id}")
         result = accept_review(review_id)
+        logger.info(f"Review {review_id} accepted successfully")
         return jsonify({"result": result}), 200
     except Exception as e:
+        logger.error(f"Error accepting review {review_id}: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 400
 
 @app.route("/api/admin/rejectReview/<review_id>", methods=["POST"])
 def reject_review_route(review_id):
     try:
+        logger.info(f"Admin rejecting review {review_id}")
         result = reject_review(review_id)
+        logger.info(f"Review {review_id} rejected successfully")
         return jsonify({"result": result}), 200
     except Exception as e:
+        logger.error(f"Error rejecting review {review_id}: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 400
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+    port = int(os.getenv("PORT", 5000))
+    logger.info(f"Starting Flask server on port {port}")
+    app.run(debug=True, host="0.0.0.0", port=port)

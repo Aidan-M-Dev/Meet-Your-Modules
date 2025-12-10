@@ -1,6 +1,10 @@
 import google.generativeai as genai
 from enum import Enum
 import os
+from logger import setup_logger
+
+# Set up logger
+logger = setup_logger(__name__)
 
 MODEL_ID = "gemini-2.5-flash-lite"
 
@@ -9,15 +13,20 @@ master_prompt = f.read()
 f.close()
 
 def sentiment_review(text):
+    logger.debug(f"Analyzing review sentiment (length: {len(text)} chars)")
     full_prompt = master_prompt + text
     count = 0
     while count < 3:
         response = query(full_prompt)
         if response == "Yes":
+            logger.info("AI sentiment analysis: Review approved (appropriate)")
             return True
         elif response == "No":
+            logger.warning("AI sentiment analysis: Review flagged (inappropriate content)")
             return False
         count += 1
+        logger.debug(f"AI returned non-binary answer, retrying (attempt {count}/3)")
+    logger.error("AI sentiment analysis failed after 3 attempts - not returning binary answer")
     raise Exception("Gen AI not raising binary answers.")
 
 def query(prompt):
@@ -36,7 +45,7 @@ def notify_admins_of_reported_review(review_id):
     """
     # TODO: Implement admin notification system
     # This could send emails, create notifications in admin panel, etc.
-    print(f"ADMIN NOTIFICATION: Review {review_id} has been reported and requires moderation")
+    logger.warning(f"ADMIN NOTIFICATION: Review {review_id} has been reported and requires moderation")
     pass
 
 def programme_specification_pdf_parser(file_path):

@@ -6,3 +6,7 @@ dist/
 frontend/dist/
 .env
 *.env
+
+# Logs
+backend/logs/
+*.log
