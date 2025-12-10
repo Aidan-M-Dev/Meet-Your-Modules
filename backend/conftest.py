@@ -11,6 +11,9 @@ from unittest.mock import Mock, MagicMock
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+# Set testing environment before importing app
+os.environ['FLASK_ENV'] = 'testing'
+
 # Add parent directory to path so we can import modules
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
