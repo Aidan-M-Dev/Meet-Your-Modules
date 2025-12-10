@@ -62,56 +62,14 @@
 
 ## 🚦 Current Sprint
 
-**Sprint Goal**: Establish production-ready foundation with authentication and security
+**Sprint Goal**: Establish production-ready foundation with admin security and mobile responsiveness
 **Sprint Duration**: TBD
 **Start Date**: TBD
 **End Date**: TBD
 
 ### In Progress
 
-#### [MYM-001] User Authentication System
-**Type**: Feature
-**Priority**: P0 (Critical)
-**Status**: Backlog
-**Estimated Effort**: L
-**Dependencies**: None
-
-**Description**:
-Implement user authentication system to enable personalized reviews, user profiles, and access control. Currently, there is no authentication - this is a critical security gap.
-
-**Acceptance Criteria**:
-- [ ] User registration with email validation
-- [ ] Login/logout functionality
-- [ ] Password hashing (bcrypt or similar)
-- [ ] Session management
-- [ ] JWT token generation and validation
-- [ ] Protected API endpoints
-- [ ] Frontend auth state management
-- [ ] Redirect unauthorized users
-- [ ] Reviews linked to user accounts
-
-**Technical Notes**:
-- Add `users` table to database schema
-- Install `flask-jwt-extended` or similar
-- Add `user_id` foreign key to `reviews` table
-- Create Vue composable for auth state
-- Add route guards in Vue Router
-- Implement refresh token rotation
-- Add password reset functionality
-
-**Related Files**:
-- `backend/app.py` - Add auth endpoints
-- `backend/db.py` - Add user management functions
-- `backend/sql_statements/05_users_schema.sql` - New migration
-- `frontend/src/composables/useAuth.js` - New auth composable
-- `frontend/src/router/index.js` - Add route guards
-
-**Testing**:
-- [ ] Registration with duplicate email fails
-- [ ] Login with wrong password fails
-- [ ] Protected endpoints reject unauthenticated requests
-- [ ] JWT tokens expire correctly
-- [ ] Session persists across page refreshes
+*(No items currently)*
 
 ---
 
@@ -129,55 +87,58 @@ Implement user authentication system to enable personalized reviews, user profil
 
 ## 📦 Feature Backlog
 
-### [MYM-002] Admin Authentication & Role System
+### [MYM-001] Admin Authentication with Role Hierarchy
 **Type**: Feature
 **Priority**: P0 (Critical)
 **Status**: Backlog
-**Estimated Effort**: M
-**Dependencies**: [MYM-001]
+**Estimated Effort**: L
+**Dependencies**: None
 
 **Description**:
-Secure admin panel with role-based access control. Currently, admin panel is publicly accessible at `/admin`.
+Secure admin panel with role-based access control. Currently, admin panel is publicly accessible at `/admin`. System needs two admin roles: standard admins (can moderate reviews) and senior admins (can add/remove other admins).
+
+**Note**: Regular users do NOT need accounts - they submit reviews anonymously. Only admins need authentication.
 
 **Acceptance Criteria**:
-- [ ] Admin role in users table
-- [ ] Admin-only route guards
-- [ ] Separate admin login page
-- [ ] Admin middleware for API endpoints
-- [ ] Audit log for admin actions
+- [ ] `admins` table with username, password_hash, role (standard/senior)
+- [ ] Admin login page at `/admin/login`
+- [ ] Session/JWT-based authentication
+- [ ] Admin-only route guards for `/admin` pages
+- [ ] Admin middleware for all `/api/admin/*` endpoints
+- [ ] Senior admin can create/delete admin accounts
+- [ ] Standard admin can only moderate reviews
+- [ ] Admin management page (senior admins only)
+- [ ] Audit log for admin actions (who accepted/rejected what)
+- [ ] Logout functionality
+
+**Technical Notes**:
+- Install `flask-jwt-extended` or use Flask sessions
+- Use bcrypt for password hashing
+- Add `admins` table (NOT users - no user accounts)
+- Create Vue composable for admin auth state
+- Add route guards in Vue Router for `/admin` routes
+- Consider initial seed admin in SQL or env variable
 
 **Related Files**:
-- `backend/app.py` - Add admin middleware
-- `backend/sql_statements/05_users_schema.sql` - Add role field
-- `frontend/src/pages/admin/AdminPage.vue` - Add auth check
-- `frontend/src/router/index.js` - Add admin guard
+- `backend/app.py` - Add admin auth endpoints & middleware
+- `backend/db.py` - Add admin management functions
+- `backend/sql_statements/05_admins_schema.sql` - New migration
+- `frontend/src/pages/admin/LoginPage.vue` - New component
+- `frontend/src/pages/admin/ManageAdminsPage.vue` - New component (senior only)
+- `frontend/src/composables/useAdminAuth.js` - New auth composable
+- `frontend/src/router/index.js` - Add admin route guards
+
+**Testing**:
+- [ ] Login with wrong password fails
+- [ ] Standard admin cannot access admin management
+- [ ] Senior admin can create new admins
+- [ ] Protected endpoints reject unauthenticated requests
+- [ ] Session persists across page refreshes
+- [ ] Admin actions are logged correctly
 
 ---
 
-### [MYM-003] User Profile Pages
-**Type**: Feature
-**Priority**: P2 (Medium)
-**Status**: Backlog
-**Estimated Effort**: M
-**Dependencies**: [MYM-001]
-
-**Description**:
-Allow users to view their review history, edit profile, and see statistics.
-
-**Acceptance Criteria**:
-- [ ] Profile page at `/profile` route
-- [ ] Display user's reviews
-- [ ] Edit profile information
-- [ ] Delete own reviews
-- [ ] View review statistics (avg rating, total reviews)
-
-**Related Files**:
-- `frontend/src/pages/profile/ProfilePage.vue` - New component
-- `backend/app.py` - Add `/api/user/profile` endpoints
-
----
-
-### [MYM-004] Email Notifications for Admin
+### [MYM-002] Email Notifications for Admin
 **Type**: Feature
 **Priority**: P2 (Medium)
 **Status**: Backlog
@@ -207,7 +168,7 @@ Send email notifications to admins when reviews are reported or flagged by AI. C
 
 ---
 
-### [MYM-005] Advanced Search Filters
+### [MYM-003] Advanced Search Filters
 **Type**: Feature
 **Priority**: P2 (Medium)
 **Status**: Backlog
@@ -233,7 +194,7 @@ Enhance search with filters for credits, department, academic year, and rating r
 
 ---
 
-### [MYM-006] Module Comparison Tool
+### [MYM-004] Module Comparison Tool
 **Type**: Feature
 **Priority**: P3 (Low)
 **Status**: Backlog
@@ -258,60 +219,7 @@ Allow users to select 2-3 modules and view side-by-side comparison of ratings, l
 
 ---
 
-### [MYM-007] Review Editing
-**Type**: Feature
-**Priority**: P2 (Medium)
-**Status**: Backlog
-**Estimated Effort**: S
-**Dependencies**: [MYM-001]
-
-**Description**:
-Allow users to edit their own reviews within 24 hours of submission.
-
-**Acceptance Criteria**:
-- [ ] "Edit" button appears on user's own reviews
-- [ ] Edit available only within 24 hours
-- [ ] Re-run AI moderation on edit
-- [ ] Show "edited" badge with timestamp
-- [ ] Track edit history (optional)
-
-**Technical Notes**:
-- Add `created_at` and `updated_at` to reviews table
-- Add `user_id` foreign key (from [MYM-001])
-- Check ownership before allowing edit
-
-**Related Files**:
-- `backend/sql_statements/06_review_timestamps.sql` - Migration
-- `backend/db.py` - Add `update_review()`
-- `frontend/src/pages/module/ModulePage.vue` - Add edit UI
-
----
-
-### [MYM-008] Data Import Tool for Other Universities
-**Type**: Feature
-**Priority**: P3 (Low)
-**Status**: Backlog
-**Estimated Effort**: L
-**Dependencies**: None
-
-**Description**:
-Create tool to import module data from CSV or other universities' PDF specifications. Currently only supports Imperial College PDFs.
-
-**Acceptance Criteria**:
-- [ ] Admin page for data import
-- [ ] Support CSV format
-- [ ] Support multiple PDF formats
-- [ ] Validation and error reporting
-- [ ] Dry-run mode
-- [ ] Duplicate detection
-
-**Related Files**:
-- `backend/lib.py` - Extend PDF parser
-- `frontend/src/pages/admin/ImportPage.vue` - New component
-
----
-
-### [MYM-009] Analytics Dashboard
+### [MYM-005] Analytics Dashboard
 **Type**: Feature
 **Priority**: P3 (Low)
 **Status**: Backlog
@@ -336,28 +244,95 @@ Admin dashboard showing system usage statistics, popular modules, review trends,
 
 ---
 
-### [MYM-010] Mobile App (React Native)
+### [MYM-006] Responsive Mobile Design
 **Type**: Feature
-**Priority**: P3 (Low)
+**Priority**: P1 (High)
 **Status**: Backlog
-**Estimated Effort**: XL
-**Dependencies**: [MYM-001]
+**Estimated Effort**: M
+**Dependencies**: None
 
 **Description**:
-Native mobile application for iOS and Android using React Native or Flutter.
+Ensure excellent mobile experience through responsive web design. No dedicated mobile app needed - site should work perfectly on mobile browsers.
 
 **Acceptance Criteria**:
-- [ ] Search and view modules
-- [ ] Submit reviews
-- [ ] Push notifications for reported reviews
-- [ ] Offline mode
-- [ ] Deep linking to modules
-- [ ] App store deployment
+- [ ] All pages responsive on mobile (320px+)
+- [ ] Touch-friendly buttons and form elements
+- [ ] Mobile-optimized search interface
+- [ ] Easy-to-read review cards on small screens
+- [ ] Mobile-friendly admin panel
+- [ ] Test on iOS Safari and Android Chrome
+- [ ] Hamburger menu for navigation (if needed)
+- [ ] Proper viewport meta tags
+- [ ] Fast loading on mobile networks
 
 **Technical Notes**:
-- Reuse existing Flask API
-- Consider GraphQL for mobile efficiency
-- Implement mobile-specific auth flow
+- Already using Tailwind CSS with responsive utilities
+- May need to adjust spacing, font sizes, touch targets
+- Test with Chrome DevTools mobile emulation
+- Consider lazy loading for review lists
+
+**Related Files**:
+- `frontend/src/pages/search/SearchPage.vue` - Mobile search UX
+- `frontend/src/pages/module/ModulePage.vue` - Mobile review display
+- `frontend/src/pages/admin/AdminPage.vue` - Mobile admin panel
+- `frontend/index.html` - Viewport meta tags
+
+**Testing**:
+- [ ] Test on iPhone (Safari)
+- [ ] Test on Android (Chrome)
+- [ ] Test landscape and portrait orientations
+- [ ] Verify touch targets are 44x44px minimum
+- [ ] Check text readability without zooming
+
+---
+
+### [MYM-007] Anonymous User Sessions
+**Type**: Feature
+**Priority**: P1 (High)
+**Status**: Backlog
+**Estimated Effort**: M
+**Dependencies**: None
+
+**Description**:
+Implement lightweight anonymous user sessions to preserve search preferences and prevent abuse (duplicate likes/reports). Users do NOT need to create accounts or login - this is purely for tracking browser sessions.
+
+**Acceptance Criteria**:
+- [ ] Generate anonymous session ID on first visit (cookie or localStorage)
+- [ ] Preserve search filters (course, query) in session
+- [ ] Track which reviews user has liked/disliked (prevent duplicate votes)
+- [ ] Track which reviews user has reported (prevent spam reporting)
+- [ ] Session persists across page refreshes
+- [ ] No personally identifiable information stored
+- [ ] Session expires after 30 days of inactivity
+- [ ] Backend validates session for like/report endpoints
+
+**Technical Notes**:
+- Use HTTP-only cookies for session ID (more secure than localStorage)
+- Store session data in PostgreSQL or Redis
+- Session table: `id`, `session_id`, `created_at`, `last_active`, `liked_reviews[]`, `reported_reviews[]`, `search_preferences`
+- Alternative: Use localStorage for preferences only, backend tracks IPs for abuse prevention
+- Consider privacy implications - GDPR compliance if needed
+
+**Related Files**:
+- `backend/app.py` - Session middleware, update like/report endpoints
+- `backend/db.py` - Session management functions
+- `backend/sql_statements/06_sessions_schema.sql` - New migration
+- `frontend/src/composables/useSession.js` - Session state management
+- `frontend/src/pages/search/SearchPage.vue` - Load/save search preferences
+
+**Testing**:
+- [ ] Search preferences persist after navigation
+- [ ] User cannot like same review twice
+- [ ] User cannot report same review twice
+- [ ] Session survives page refresh
+- [ ] New browser/incognito gets fresh session
+- [ ] Old sessions cleaned up automatically
+
+**Privacy Notes**:
+- No user accounts, no email, no personal data
+- Session IDs are random, not tied to identity
+- Used only for UX and abuse prevention
+- Add privacy policy note if needed
 
 ---
 
@@ -408,30 +383,7 @@ Weighted rating calculation shows NaN or 0 when module has no reviews. Should sh
 
 ---
 
-### [BUG-003] AI Moderation Retry Logic Fails Silently
-**Type**: Bug
-**Priority**: P1 (High)
-**Status**: Backlog
-**Estimated Effort**: S
-**Dependencies**: None
-
-**Description**:
-When Google API fails after 3 retries, review is silently rejected. User sees no error message.
-
-**Acceptance Criteria**:
-- [ ] Return error to frontend when AI fails
-- [ ] Show user-friendly error message
-- [ ] Log API failures for debugging
-- [ ] Fallback to manual moderation queue
-
-**Related Files**:
-- `backend/lib.py` - Update `sentiment_review()`
-- `backend/app.py` - Handle AI failure case
-- `frontend/src/pages/module/ModulePage.vue` - Show error
-
----
-
-### [BUG-004] Course Filter Doesn't Persist on Navigation
+### [BUG-003] Course Filter Doesn't Persist on Navigation
 **Type**: Bug
 **Priority**: P3 (Low)
 **Status**: Backlog
@@ -441,9 +393,11 @@ When Google API fails after 3 retries, review is silently rejected. User sees no
 **Description**:
 When user filters by course, navigates to module, then goes back, filter is reset.
 
+**Note**: This will be addressed by [MYM-007] Anonymous User Sessions, which persists search preferences.
+
 **Acceptance Criteria**:
-- [ ] Store filter in URL query params
-- [ ] Restore filter from URL on page load
+- [ ] Store filter in URL query params OR session storage
+- [ ] Restore filter from URL/session on page load
 - [ ] Persist across navigation
 
 **Related Files**:
@@ -452,7 +406,7 @@ When user filters by course, navigates to module, then goes back, filter is rese
 
 ---
 
-### [BUG-005] Duplicate Lecturers in Search Results
+### [BUG-004] Duplicate Lecturers in Search Results
 **Type**: Bug
 **Priority**: P2 (Medium)
 **Status**: Backlog

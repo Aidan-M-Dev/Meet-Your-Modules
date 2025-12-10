@@ -448,13 +448,13 @@ docker-compose up --build postgres
 ### Current State
 - Development configuration (Docker Compose)
 - Frontend uses Vite dev server (not production build)
-- No authentication system implemented
+- No authentication system (admin auth planned, not implemented)
 - No HTTPS configuration
+- Anonymous review submission (by design - no user accounts needed)
 
 ### For Production (Not Implemented)
 **Would Need:**
-- [ ] User authentication (login/signup)
-- [ ] Admin authentication
+- [ ] Admin authentication with role hierarchy (standard admin + senior admin)
 - [ ] Production build of frontend (`npm run build`)
 - [ ] Nginx/reverse proxy setup
 - [ ] HTTPS certificates
@@ -463,6 +463,13 @@ docker-compose up --build postgres
 - [ ] Logging and monitoring
 - [ ] Rate limiting on API endpoints
 - [ ] Input validation and sanitization (partially implemented)
+- [ ] Responsive mobile design optimization
+
+**Design Philosophy:**
+- **No user accounts**: Students can submit reviews anonymously without login
+- **Anonymous sessions**: Lightweight browser sessions for UX (preserve filters) and abuse prevention (duplicate likes)
+- **Admin-only auth**: Only moderators need authentication (with senior admin role for managing admins)
+- **Mobile-friendly**: Responsive web design, no dedicated mobile app
 
 ---
 
