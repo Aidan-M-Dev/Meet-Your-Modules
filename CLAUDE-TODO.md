@@ -12,7 +12,7 @@
 3. **Assign priority** (P0-P3) based on impact and dependencies
 4. **Move items** between sections as work progresses
 5. **Update status** when work is completed
-6. **Archive completed** items to "Done" section monthly
+6. **Delete completed** items entirely (they're preserved in git history)
 
 ### For Developer Instances
 1. **Check "In Progress"** section for current work
@@ -619,12 +619,6 @@ Standardize error responses across all API endpoints.
 
 ---
 
-## ✅ Done
-
-*(Completed items will be moved here with completion date)*
-
----
-
 ## 📊 Priority Definitions
 
 - **P0 (Critical)**: Blocks production deployment or major functionality
@@ -645,10 +639,12 @@ Standardize error responses across all API endpoints.
 ## 🔄 Workflow
 
 ```
-Backlog → In Progress → Ready for Review → Done
+Backlog → In Progress → Ready for Review → Delete (work complete)
                 ↓
              Blocked
 ```
+
+**Note**: Completed tickets are deleted from this file to save space. All work is preserved in git commit history.
 
 ---
 
@@ -674,7 +670,7 @@ Backlog → In Progress → Ready for Review → Done
 ### Regular Maintenance
 - **Weekly**: Review "In Progress" status
 - **Bi-weekly**: Groom backlog, update priorities
-- **Monthly**: Archive completed items
+- **As needed**: Delete completed items to keep file lean
 - **Quarterly**: Review technical debt
 
 ---
