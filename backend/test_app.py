@@ -17,7 +17,7 @@ from errors import ErrorCode
 
 def test_health_endpoint(client):
     """Test /api/health endpoint returns 200 OK."""
-    response = client.get('/api/health')
+    response = client.get('/api/v1/health')
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data['status'] == 'ok'
@@ -30,7 +30,7 @@ def test_health_db_endpoint_success(client):
         mock_cursor.fetchone.return_value = (1,)
         mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
 
-        response = client.get('/api/health/db')
+        response = client.get('/api/v1/health/db')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data['status'] == 'ok'
@@ -42,7 +42,7 @@ def test_health_db_endpoint_failure(client):
     with patch('app.get_db_connection') as mock_conn:
         mock_conn.side_effect = Exception("Database connection failed")
 
-        response = client.get('/api/health/db')
+        response = client.get('/api/v1/health/db')
         assert response.status_code == 500
         data = json.loads(response.data)
         assert data['status'] == 'error'
@@ -64,7 +64,7 @@ def test_search_modules_by_code_success(client):
             }
         ]
 
-        response = client.get('/api/searchModulesByCode/COMP1001')
+        response = client.get('/api/v1/searchModulesByCode/COMP1001')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert 'modules' in data
@@ -74,7 +74,7 @@ def test_search_modules_by_code_success(client):
 
 def test_search_modules_by_code_validation_error(client):
     """Test search by code with invalid module code."""
-    response = client.get('/api/searchModulesByCode/')  # Empty code
+    response = client.get('/api/v1/searchModulesByCode/')  # Empty code
     assert response.status_code == 404  # Route not found
 
 
@@ -86,7 +86,7 @@ def test_search_modules_by_name_success(client):
             {'id': 2, 'code': 'COMP2001', 'name': 'Advanced Programming'}
         ]
 
-        response = client.get('/api/searchModules?q=programming')
+        response = client.get('/api/v1/searchModules?q=programming')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert 'modules' in data
@@ -96,7 +96,7 @@ def test_search_modules_by_name_success(client):
 
 def test_search_modules_empty_query(client):
     """Test search with empty query returns empty list."""
-    response = client.get('/api/searchModules?q=')
+    response = client.get('/api/v1/searchModules?q=')
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data['modules'] == []
@@ -116,7 +116,7 @@ def test_get_module_info_success(client):
             'years': []
         }
 
-        response = client.get('/api/getModuleInfo/1')
+        response = client.get('/api/v1/getModuleInfo/1')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert 'yearsInfo' in data
@@ -128,7 +128,7 @@ def test_get_module_info_not_found(client):
     with patch('app.get_module_info_with_iterations') as mock_get:
         mock_get.return_value = None
 
-        response = client.get('/api/getModuleInfo/999')
+        response = client.get('/api/v1/getModuleInfo/999')
         assert response.status_code == 404
         data = json.loads(response.data)
         assert 'error' in data
@@ -137,7 +137,7 @@ def test_get_module_info_not_found(client):
 
 def test_get_module_info_invalid_id(client):
     """Test getting info with invalid module ID."""
-    response = client.get('/api/getModuleInfo/invalid')
+    response = client.get('/api/v1/getModuleInfo/invalid')
     assert response.status_code == 400
     data = json.loads(response.data)
     assert 'error' in data
@@ -153,7 +153,7 @@ def test_like_review_success(client):
     with patch('app.like_or_dislike_review') as mock_like:
         mock_like.return_value = {'likes': 11}
 
-        response = client.get('/api/likeReview/1/true')
+        response = client.get('/api/v1/likeReview/1/true')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert 'result' in data
@@ -165,7 +165,7 @@ def test_dislike_review_success(client):
     with patch('app.like_or_dislike_review') as mock_like:
         mock_like.return_value = {'dislikes': 3}
 
-        response = client.get('/api/likeReview/1/false')
+        response = client.get('/api/v1/likeReview/1/false')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert 'result' in data
@@ -174,7 +174,7 @@ def test_dislike_review_success(client):
 
 def test_like_review_invalid_boolean(client):
     """Test liking review with invalid boolean parameter."""
-    response = client.get('/api/likeReview/1/invalid')
+    response = client.get('/api/v1/likeReview/1/invalid')
     assert response.status_code == 400
     data = json.loads(response.data)
     assert 'error' in data
@@ -186,7 +186,7 @@ def test_report_review_success(client):
     with patch('app.report_review') as mock_report:
         mock_report.return_value = {'report_count': 2}
 
-        response = client.get('/api/reportReview/1')
+        response = client.get('/api/v1/reportReview/1')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert 'result' in data
@@ -206,7 +206,7 @@ def test_submit_review_success(client):
         mock_submit.return_value = {'id': 1, 'status': 'published'}
 
         response = client.post(
-            '/api/submitReview/1?overall_rating=5',
+            '/api/v1/submitReview/1?overall_rating=5',
             data={'reviewText': 'Great module!'}
         )
         assert response.status_code == 200
@@ -224,7 +224,7 @@ def test_submit_review_flagged_by_ai(client):
         mock_submit.return_value = {'id': 1, 'status': 'automatic_review'}
 
         response = client.post(
-            '/api/submitReview/1?overall_rating=1',
+            '/api/v1/submitReview/1?overall_rating=1',
             data={'reviewText': 'Inappropriate content'}
         )
         assert response.status_code == 200
@@ -236,21 +236,21 @@ def test_submit_review_validation_errors(client):
     """Test review submission with various validation errors."""
     # Missing rating
     response = client.post(
-        '/api/submitReview/1',
+        '/api/v1/submitReview/1',
         data={'reviewText': 'Test review'}
     )
     assert response.status_code == 400
 
     # Invalid rating (out of range)
     response = client.post(
-        '/api/submitReview/1?overall_rating=10',
+        '/api/v1/submitReview/1?overall_rating=10',
         data={'reviewText': 'Test review'}
     )
     assert response.status_code == 400
 
     # Review text too short
     response = client.post(
-        '/api/submitReview/1?overall_rating=5',
+        '/api/v1/submitReview/1?overall_rating=5',
         data={'reviewText': 'Too short'}
     )
     assert response.status_code == 400
@@ -268,7 +268,7 @@ def test_get_courses_success(client):
             {'id': 2, 'code': 'G401', 'name': 'Computer Science MEng'}
         ]
 
-        response = client.get('/api/courses')
+        response = client.get('/api/v1/courses')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert 'courses' in data
@@ -292,7 +292,7 @@ def test_get_pending_reviews(client):
             }
         ]
 
-        response = client.get('/api/admin/pendingReviews')
+        response = client.get('/api/v1/admin/pendingReviews')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert 'reviews' in data
@@ -304,7 +304,7 @@ def test_get_rejected_reviews(client):
     with patch('app.get_rejected_reviews') as mock_rejected:
         mock_rejected.return_value = []
 
-        response = client.get('/api/admin/rejectedReviews')
+        response = client.get('/api/v1/admin/rejectedReviews')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert 'reviews' in data
@@ -316,7 +316,7 @@ def test_accept_review(client):
     with patch('app.accept_review') as mock_accept:
         mock_accept.return_value = {'id': 1, 'status': 'published'}
 
-        response = client.post('/api/admin/acceptReview/1')
+        response = client.post('/api/v1/admin/acceptReview/1')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert 'result' in data
@@ -328,7 +328,7 @@ def test_reject_review(client):
     with patch('app.reject_review') as mock_reject:
         mock_reject.return_value = {'id': 1, 'status': 'rejected'}
 
-        response = client.post('/api/admin/rejectReview/1')
+        response = client.post('/api/v1/admin/rejectReview/1')
         assert response.status_code == 200
         data = json.loads(response.data)
         assert 'result' in data
@@ -341,7 +341,7 @@ def test_reject_review(client):
 
 def test_get_user_not_implemented(client):
     """Test /api/user endpoint returns 501 Not Implemented."""
-    response = client.get('/api/user')
+    response = client.get('/api/v1/user')
     assert response.status_code == 501
     data = json.loads(response.data)
     assert 'error' in data
@@ -363,7 +363,7 @@ def test_rate_limiting_review_submission(client):
         # Submit 6 reviews (limit is 5 per hour)
         for i in range(6):
             response = client.post(
-                f'/api/submitReview/{i+1}?overall_rating=5',
+                f'/api/v1/submitReview/{i+1}?overall_rating=5',
                 data={'reviewText': f'Review number {i+1}, this is a test review that is long enough.'}
             )
 
@@ -385,7 +385,7 @@ def test_rate_limiting_review_submission(client):
 def test_error_response_format(client):
     """Test that all errors follow standardized format."""
     # Validation error
-    response = client.get('/api/getModuleInfo/invalid')
+    response = client.get('/api/v1/getModuleInfo/invalid')
     assert response.status_code == 400
     data = json.loads(response.data)
     assert 'error' in data
@@ -396,7 +396,7 @@ def test_error_response_format(client):
 
 def test_404_error_format(client):
     """Test that 404 errors follow standardized format."""
-    response = client.get('/api/nonexistent')
+    response = client.get('/api/v1/nonexistent')
     assert response.status_code == 404
     data = json.loads(response.data)
     assert 'error' in data
@@ -410,7 +410,7 @@ def test_404_error_format(client):
 
 def test_cors_headers(client):
     """Test that CORS headers are set correctly."""
-    response = client.get('/api/health')
+    response = client.get('/api/v1/health')
     assert 'Access-Control-Allow-Origin' in response.headers
 
 
@@ -421,7 +421,7 @@ def test_cors_headers(client):
 def test_gzip_compression(client):
     """Test that gzip compression is enabled for JSON responses."""
     response = client.get(
-        '/api/health',
+        '/api/v1/health',
         headers={'Accept-Encoding': 'gzip'}
     )
     # Check if response can be gzipped (depends on size)

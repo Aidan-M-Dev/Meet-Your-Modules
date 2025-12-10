@@ -109,13 +109,15 @@ import atexit
 atexit.register(close_connection_pool)
 
 
-@app.route("/api/health")
+@app.route("/api/health")  # Keep old route for backward compatibility
+@app.route("/api/v1/health")
 def health():
     """Basic health check endpoint."""
-    return jsonify({"status": "ok"}), 200
+    return jsonify({"status": "ok", "version": "v1"}), 200
 
 
-@app.route("/api/health/db")
+@app.route("/api/health/db")  # Keep old route for backward compatibility
+@app.route("/api/v1/health/db")
 def health_db():
     """Database health check endpoint."""
     try:
@@ -131,7 +133,7 @@ def health_db():
         logger.error(f"Database health check failed: {str(e)}", exc_info=True)
         return jsonify({"status": "error", "database": "disconnected", "error": str(e)}), 500
 
-@app.route("/api/searchModulesByCode/<module_code>")
+@app.route("/api/v1/searchModulesByCode/<module_code>")
 @limiter.limit("30 per minute")
 def search_modules_by_code_route(module_code):
     """Search for modules by module code."""
@@ -148,7 +150,7 @@ def search_modules_by_code_route(module_code):
     except Exception as e:
         return handle_internal_error(e, f"searching for module code '{module_code}'")
 
-@app.route("/api/searchModules")
+@app.route("/api/v1/searchModules")
 @limiter.limit("30 per minute")
 def search_modules_route():
     """Search for modules by name, code, or lecturer."""
@@ -169,7 +171,7 @@ def search_modules_route():
     except Exception as e:
         return handle_internal_error(e, "searching modules")
 
-@app.route("/api/courses")
+@app.route("/api/v1/courses")
 def get_courses_route():
     """Get all available courses."""
     try:
@@ -178,7 +180,7 @@ def get_courses_route():
     except Exception as e:
         return handle_database_error(e, "fetching courses")
 
-@app.route("/api/getModuleInfo/<module_id>")
+@app.route("/api/v1/getModuleInfo/<module_id>")
 @limiter.limit("60 per minute")
 def get_module_info_route(module_id):
     """Get detailed information for a specific module including all iterations."""
@@ -196,7 +198,7 @@ def get_module_info_route(module_id):
     except Exception as e:
         return handle_internal_error(e, "fetching module info")
 
-@app.route("/api/likeReview/<review_id>/<like_or_dislike>")
+@app.route("/api/v1/likeReview/<review_id>/<like_or_dislike>")
 @limiter.limit("10 per minute")
 def like_review_route(review_id, like_or_dislike):
     """Like or dislike a review."""
@@ -215,7 +217,7 @@ def like_review_route(review_id, like_or_dislike):
     except Exception as e:
         return handle_database_error(e, "updating review likes")
 
-@app.route("/api/reportReview/<review_id>")
+@app.route("/api/v1/reportReview/<review_id>")
 @limiter.limit("5 per hour")  # Strict limit to prevent abuse
 def report_review_route(review_id):
     """Report a review as inappropriate."""
@@ -231,7 +233,7 @@ def report_review_route(review_id):
     except Exception as e:
         return handle_database_error(e, "reporting review")
     
-@app.route("/api/submitReview/<module_iteration_id>", methods=["POST"])
+@app.route("/api/v1/submitReview/<module_iteration_id>", methods=["POST"])
 @limiter.limit("5 per hour")  # Strict limit to prevent spam
 def submit_review_route(module_iteration_id):
     """Submit a new review for a module iteration."""
@@ -265,13 +267,13 @@ def submit_review_route(module_iteration_id):
     except Exception as e:
         return handle_internal_error(e, "submitting review")
 
-@app.route("/api/user")
+@app.route("/api/v1/user")
 def get_user():
     """Get current user information (not yet implemented)."""
     # TODO: Implement authentication with a local auth system
     return handle_not_implemented()
 
-@app.route("/api/admin/pendingReviews")
+@app.route("/api/v1/admin/pendingReviews")
 def get_pending_reviews_route():
     """Get all reviews pending admin moderation."""
     try:
@@ -280,7 +282,7 @@ def get_pending_reviews_route():
     except Exception as e:
         return handle_database_error(e, "fetching pending reviews")
 
-@app.route("/api/admin/rejectedReviews")
+@app.route("/api/v1/admin/rejectedReviews")
 def get_rejected_reviews_route():
     """Get all rejected reviews."""
     try:
@@ -289,7 +291,7 @@ def get_rejected_reviews_route():
     except Exception as e:
         return handle_database_error(e, "fetching rejected reviews")
 
-@app.route("/api/admin/acceptReview/<review_id>", methods=["POST"])
+@app.route("/api/v1/admin/acceptReview/<review_id>", methods=["POST"])
 @limiter.limit("100 per hour")
 def accept_review_route(review_id):
     """Admin endpoint to accept a pending or reported review."""
@@ -306,7 +308,7 @@ def accept_review_route(review_id):
     except Exception as e:
         return handle_database_error(e, f"accepting review {review_id}")
 
-@app.route("/api/admin/rejectReview/<review_id>", methods=["POST"])
+@app.route("/api/v1/admin/rejectReview/<review_id>", methods=["POST"])
 @limiter.limit("100 per hour")
 def reject_review_route(review_id):
     """Admin endpoint to reject a pending or reported review."""

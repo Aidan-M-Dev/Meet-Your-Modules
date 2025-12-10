@@ -169,7 +169,7 @@ export default {
       pendingError.value = null
 
       try {
-        const response = await fetch('/api/admin/pendingReviews')
+        const response = await fetch('/api/v1/admin/pendingReviews')
         if (!response.ok) {
           throw new Error('Failed to fetch pending reviews')
         }
@@ -188,7 +188,7 @@ export default {
       rejectedError.value = null
 
       try {
-        const response = await fetch('/api/admin/rejectedReviews')
+        const response = await fetch('/api/v1/admin/rejectedReviews')
         if (!response.ok) {
           throw new Error('Failed to fetch rejected reviews')
         }

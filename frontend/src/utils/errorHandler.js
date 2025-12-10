@@ -95,7 +95,7 @@ export function getUserFriendlyMessage(errorCode, fallbackMessage = null) {
  *
  * @example
  * try {
- *   const response = await fetch('/api/submitReview/123', { method: 'POST', ... })
+ *   const response = await fetch('/api/v1/submitReview/123', { method: 'POST', ... })
  *   if (!response.ok) {
  *     const errorMessage = await handleApiError(response)
  *     alert(errorMessage)
