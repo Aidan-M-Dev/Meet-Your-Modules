@@ -120,14 +120,10 @@ def search_modules_by_code(module_code):
     Returns:
         list: List of module dictionaries matching the code
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("SELECT * FROM modules WHERE code = %s", (module_code,))
-    modules = cur.fetchall()
-
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM modules WHERE code = %s", (module_code,))
+            modules = cur.fetchall()
 
     return modules
 
@@ -144,84 +140,80 @@ def search_modules_by_name(search_term):
     Returns:
         list: List of module dictionaries with courses and lecturers
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    # If search term is '*', return all modules
-    if search_term == '*':
-        cur.execute("SELECT * FROM modules ORDER BY code")
-        modules = cur.fetchall()
-    else:
-        # Use ILIKE for case-insensitive pattern matching
-        # Search across module name, code, and lecturer names
-        search_pattern = f"%{search_term}%"
-        cur.execute("""
-            SELECT DISTINCT m.*
-            FROM modules m
-            LEFT JOIN module_iterations mi ON m.id = mi.module_id
-            LEFT JOIN module_iterations_lecturers_links mil ON mi.id = mil.module_iteration_id
-            LEFT JOIN lecturers l ON mil.lecturer_id = l.id
-            WHERE
-              m.name ILIKE %s OR
-              m.code ILIKE %s OR
-              l.name ILIKE %s
-            ORDER BY m.code
-        """, (search_pattern, search_pattern, search_pattern))
-        modules = cur.fetchall()
-
-    # Get the most recent year from module_iterations
-    cur.execute("SELECT MAX(academic_year_start_year) FROM module_iterations")
-    result = cur.fetchone()
-    current_year = result['max'] if result and result['max'] else None
-
-    # Enrich each module with current year courses and lecturers
-    enriched_modules = []
-    for module in modules:
-        if current_year:
-            # Get current year iteration
-            cur.execute(
-                "SELECT id FROM module_iterations WHERE module_id = %s AND academic_year_start_year = %s",
-                (module['id'], current_year)
-            )
-            iteration = cur.fetchone()
-
-            if iteration:
-                # Get courses for this iteration
-                cur.execute("""
-                    SELECT c.id, c.title
-                    FROM courses c
-                    INNER JOIN module_iterations_courses_links micl ON c.id = micl.course_id
-                    WHERE micl.module_iteration_id = %s
-                """, (iteration['id'],))
-                courses = cur.fetchall()
-
-                # Get lecturers for this iteration (DISTINCT to avoid duplicates)
-                cur.execute("""
-                    SELECT DISTINCT l.id, l.name
-                    FROM lecturers l
-                    INNER JOIN module_iterations_lecturers_links mil ON l.id = mil.lecturer_id
-                    WHERE mil.module_iteration_id = %s
-                    ORDER BY l.name
-                """, (iteration['id'],))
-                lecturers = cur.fetchall()
-
-                enriched_module = dict(module)
-                enriched_module['current_courses'] = courses
-                enriched_module['current_lecturers'] = lecturers
-                enriched_modules.append(enriched_module)
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # If search term is '*', return all modules
+            if search_term == '*':
+                cur.execute("SELECT * FROM modules ORDER BY code")
+                modules = cur.fetchall()
             else:
-                enriched_module = dict(module)
-                enriched_module['current_courses'] = []
-                enriched_module['current_lecturers'] = []
-                enriched_modules.append(enriched_module)
-        else:
-            enriched_module = dict(module)
-            enriched_module['current_courses'] = []
-            enriched_module['current_lecturers'] = []
-            enriched_modules.append(enriched_module)
+                # Use ILIKE for case-insensitive pattern matching
+                # Search across module name, code, and lecturer names
+                search_pattern = f"%{search_term}%"
+                cur.execute("""
+                    SELECT DISTINCT m.*
+                    FROM modules m
+                    LEFT JOIN module_iterations mi ON m.id = mi.module_id
+                    LEFT JOIN module_iterations_lecturers_links mil ON mi.id = mil.module_iteration_id
+                    LEFT JOIN lecturers l ON mil.lecturer_id = l.id
+                    WHERE
+                      m.name ILIKE %s OR
+                      m.code ILIKE %s OR
+                      l.name ILIKE %s
+                    ORDER BY m.code
+                """, (search_pattern, search_pattern, search_pattern))
+                modules = cur.fetchall()
 
-    cur.close()
-    conn.close()
+            # Get the most recent year from module_iterations
+            cur.execute("SELECT MAX(academic_year_start_year) FROM module_iterations")
+            result = cur.fetchone()
+            current_year = result['max'] if result and result['max'] else None
+
+            # Enrich each module with current year courses and lecturers
+            enriched_modules = []
+            for module in modules:
+                if current_year:
+                    # Get current year iteration
+                    cur.execute(
+                        "SELECT id FROM module_iterations WHERE module_id = %s AND academic_year_start_year = %s",
+                        (module['id'], current_year)
+                    )
+                    iteration = cur.fetchone()
+
+                    if iteration:
+                        # Get courses for this iteration
+                        cur.execute("""
+                            SELECT c.id, c.title
+                            FROM courses c
+                            INNER JOIN module_iterations_courses_links micl ON c.id = micl.course_id
+                            WHERE micl.module_iteration_id = %s
+                        """, (iteration['id'],))
+                        courses = cur.fetchall()
+
+                        # Get lecturers for this iteration (DISTINCT to avoid duplicates)
+                        cur.execute("""
+                            SELECT DISTINCT l.id, l.name
+                            FROM lecturers l
+                            INNER JOIN module_iterations_lecturers_links mil ON l.id = mil.lecturer_id
+                            WHERE mil.module_iteration_id = %s
+                            ORDER BY l.name
+                        """, (iteration['id'],))
+                        lecturers = cur.fetchall()
+
+                        enriched_module = dict(module)
+                        enriched_module['current_courses'] = courses
+                        enriched_module['current_lecturers'] = lecturers
+                        enriched_modules.append(enriched_module)
+                    else:
+                        enriched_module = dict(module)
+                        enriched_module['current_courses'] = []
+                        enriched_module['current_lecturers'] = []
+                        enriched_modules.append(enriched_module)
+                else:
+                    enriched_module = dict(module)
+                    enriched_module['current_courses'] = []
+                    enriched_module['current_lecturers'] = []
+                    enriched_modules.append(enriched_module)
 
     return enriched_modules
 
@@ -233,14 +225,10 @@ def get_all_courses():
     Returns:
         list: List of all course dictionaries
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("SELECT * FROM courses ORDER BY title")
-    courses = cur.fetchall()
-
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM courses ORDER BY title")
+            courses = cur.fetchall()
 
     return courses
 
@@ -255,14 +243,10 @@ def get_module_by_id(module_id):
     Returns:
         dict: Module data or None if not found
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("SELECT * FROM modules WHERE id = %s", (module_id,))
-    module = cur.fetchone()
-
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM modules WHERE id = %s", (module_id,))
+            module = cur.fetchone()
 
     return module
 
@@ -277,14 +261,10 @@ def get_module_iterations(module_id):
     Returns:
         list: List of module iteration dictionaries
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("SELECT * FROM module_iterations WHERE module_id = %s", (module_id,))
-    iterations = cur.fetchall()
-
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM module_iterations WHERE module_id = %s", (module_id,))
+            iterations = cur.fetchall()
 
     return iterations
 
@@ -299,14 +279,10 @@ def get_lecturers_for_iteration(module_iteration_id):
     Returns:
         list: List of lecturer dictionaries
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("SELECT * FROM lecturers_from_module_iteration(%s)", (module_iteration_id,))
-    lecturers = cur.fetchall()
-
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM lecturers_from_module_iteration(%s)", (module_iteration_id,))
+            lecturers = cur.fetchall()
 
     return lecturers
 
@@ -321,14 +297,10 @@ def get_courses_for_iteration(module_iteration_id):
     Returns:
         list: List of course dictionaries
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("SELECT * FROM courses_from_module_iteration(%s)", (module_iteration_id,))
-    courses = cur.fetchall()
-
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM courses_from_module_iteration(%s)", (module_iteration_id,))
+            courses = cur.fetchall()
 
     return courses
 
@@ -343,17 +315,13 @@ def get_published_reviews_for_iteration(module_iteration_id):
     Returns:
         list: List of review dictionaries
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute(
-        "SELECT * FROM reviews WHERE module_iteration_id = %s AND moderation_status = %s",
-        (module_iteration_id, 'published')
-    )
-    reviews = cur.fetchall()
-
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT * FROM reviews WHERE module_iteration_id = %s AND moderation_status = %s",
+                (module_iteration_id, 'published')
+            )
+            reviews = cur.fetchall()
 
     return reviews
 
@@ -404,25 +372,21 @@ def like_or_dislike_review(review_id, like_or_dislike=True):
     Returns:
         int: The new like count
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            if like_or_dislike:
+                cur.execute(
+                    "UPDATE reviews SET like_dislike = like_dislike + 1 WHERE id = %s RETURNING like_dislike",
+                    (review_id,)
+                )
+            else:
+                cur.execute(
+                    "UPDATE reviews SET like_dislike = like_dislike - 1 WHERE id = %s RETURNING like_dislike",
+                    (review_id,)
+                )
 
-    if like_or_dislike:
-        cur.execute(
-            "UPDATE reviews SET like_dislike = like_dislike + 1 WHERE id = %s RETURNING like_dislike",
-            (review_id,)
-        )
-    else:
-        cur.execute(
-            "UPDATE reviews SET like_dislike = like_dislike - 1 WHERE id = %s RETURNING like_dislike",
-            (review_id,)
-        )
-
-    result = cur.fetchone()
-
-    conn.commit()
-    cur.close()
-    conn.close()
+            result = cur.fetchone()
+            conn.commit()
 
     return result['like_dislike'] if result else None
 
@@ -438,35 +402,32 @@ def report_review(review_id):
         bool: True if successful
     """
     logger.info(f"Review {review_id} reported by user")
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "UPDATE reviews SET report_count = report_count + 1 WHERE id = %s",
+                (review_id,)
+            )
 
-    cur.execute(
-        "UPDATE reviews SET report_count = report_count + 1 WHERE id = %s",
-        (review_id)
-    )
+            cur.execute(
+                "SELECT report_count, report_tolerance FROM reviews WHERE id = %s",
+                (review_id,)
+            )
 
-    cur.execute(
-        "SELECT report_count, report_tolerance FROM reviews WHERE id = %s",
-        (review_id)
-    )
+            result = cur.fetchone()
 
-    result = cur.fetchone()
+            if result['report_count'] >= result['report_tolerance']:
+                logger.warning(f"Review {review_id} report count ({result['report_count']}) exceeded tolerance ({result['report_tolerance']}), flagging for moderation")
+                cur.execute(
+                    "UPDATE reviews SET moderation_status = %s WHERE id = %s",
+                    ('reported', review_id)
+                )
 
-    if result['report_count'] >= result['report_tolerance']:
-        logger.warning(f"Review {review_id} report count ({result['report_count']}) exceeded tolerance ({result['report_tolerance']}), flagging for moderation")
-        cur.execute(
-            "UPDATE reviews SET moderation_status = %s WHERE id = %s",
-            ('reported', review_id)
-        )
+                notify_admins_of_reported_review(review_id)
+            else:
+                logger.debug(f"Review {review_id} report count: {result['report_count']}/{result['report_tolerance']}")
 
-        notify_admins_of_reported_review(review_id)
-    else:
-        logger.debug(f"Review {review_id} report count: {result['report_count']}/{result['report_tolerance']}")
-
-    conn.commit()
-    cur.close()
-    conn.close()
+            conn.commit()
 
     return True
 
@@ -486,34 +447,29 @@ def submit_review(module_iteration_id, text, rating, reasonable):
     Raises:
         ValueError: If module iteration ID doesn't exist
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Validate that the module iteration exists
+            logger.debug(f"Validating module iteration {module_iteration_id} exists")
+            cur.execute(
+                "SELECT id FROM module_iterations WHERE id = %s",
+                (module_iteration_id,)
+            )
+            iteration = cur.fetchone()
 
-    # Validate that the module iteration exists
-    logger.debug(f"Validating module iteration {module_iteration_id} exists")
-    cur.execute(
-        "SELECT id FROM module_iterations WHERE id = %s",
-        (module_iteration_id,)
-    )
-    iteration = cur.fetchone()
+            if not iteration:
+                logger.warning(f"Attempted to submit review for non-existent iteration {module_iteration_id}")
+                raise ValueError(f"Module iteration {module_iteration_id} not found. Cannot submit review for a module that hasn't been offered yet.")
 
-    if not iteration:
-        logger.warning(f"Attempted to submit review for non-existent iteration {module_iteration_id}")
-        cur.close()
-        conn.close()
-        raise ValueError(f"Module iteration {module_iteration_id} not found. Cannot submit review for a module that hasn't been offered yet.")
+            status = 'published' if reasonable else 'automatic_review'
+            logger.info(f"Inserting review for iteration {module_iteration_id}, rating={rating}, status={status}")
 
-    status = 'published' if reasonable else 'automatic_review'
-    logger.info(f"Inserting review for iteration {module_iteration_id}, rating={rating}, status={status}")
+            cur.execute(
+                "INSERT INTO reviews (module_iteration_id, overall_rating, comment, moderation_status, like_dislike) VALUES (%s, %s, %s, %s, 0)",
+                (module_iteration_id, rating, text, status)
+            )
 
-    cur.execute(
-        "INSERT INTO reviews (module_iteration_id, overall_rating, comment, moderation_status, like_dislike) VALUES (%s, %s, %s, %s, 0)",
-        (module_iteration_id, rating, text, status)
-    )
-
-    conn.commit()
-    cur.close()
-    conn.close()
+            conn.commit()
 
     logger.info(f"Review successfully saved for iteration {module_iteration_id}")
     return True
@@ -526,25 +482,21 @@ def get_pending_reviews():
     Returns:
         list: List of review dictionaries with module info
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("""
-        SELECT
-            r.*,
-            m.code as module_code,
-            m.name as module_name,
-            mi.academic_year_start_year
-        FROM reviews r
-        INNER JOIN module_iterations mi ON r.module_iteration_id = mi.id
-        INNER JOIN modules m ON mi.module_id = m.id
-        WHERE r.moderation_status != 'published' AND r.moderation_status != 'rejected'
-        ORDER BY r.created_at DESC
-    """)
-    reviews = cur.fetchall()
-
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT
+                    r.*,
+                    m.code as module_code,
+                    m.name as module_name,
+                    mi.academic_year_start_year
+                FROM reviews r
+                INNER JOIN module_iterations mi ON r.module_iteration_id = mi.id
+                INNER JOIN modules m ON mi.module_id = m.id
+                WHERE r.moderation_status != 'published' AND r.moderation_status != 'rejected'
+                ORDER BY r.created_at DESC
+            """)
+            reviews = cur.fetchall()
 
     return reviews
 
@@ -556,25 +508,21 @@ def get_rejected_reviews():
     Returns:
         list: List of rejected review dictionaries with module info
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("""
-        SELECT
-            r.*,
-            m.code as module_code,
-            m.name as module_name,
-            mi.academic_year_start_year
-        FROM reviews r
-        INNER JOIN module_iterations mi ON r.module_iteration_id = mi.id
-        INNER JOIN modules m ON mi.module_id = m.id
-        WHERE r.moderation_status = 'rejected'
-        ORDER BY r.created_at DESC
-    """)
-    reviews = cur.fetchall()
-
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT
+                    r.*,
+                    m.code as module_code,
+                    m.name as module_name,
+                    mi.academic_year_start_year
+                FROM reviews r
+                INNER JOIN module_iterations mi ON r.module_iteration_id = mi.id
+                INNER JOIN modules m ON mi.module_id = m.id
+                WHERE r.moderation_status = 'rejected'
+                ORDER BY r.created_at DESC
+            """)
+            reviews = cur.fetchall()
 
     return reviews
 
@@ -589,17 +537,14 @@ def accept_review(review_id):
     Returns:
         bool: True if successful
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "UPDATE reviews SET moderation_status = 'published', report_tolerance = report_tolerance + 2 WHERE id = %s",
+                (review_id,)
+            )
 
-    cur.execute(
-        "UPDATE reviews SET moderation_status = 'published', report_tolerance = report_tolerance + 2 WHERE id = %s",
-        (review_id,)
-    )
-
-    conn.commit()
-    cur.close()
-    conn.close()
+            conn.commit()
 
     return True
 
@@ -614,16 +559,13 @@ def reject_review(review_id):
     Returns:
         bool: True if successful
     """
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "UPDATE reviews SET moderation_status = 'rejected' WHERE id = %s",
+                (review_id,)
+            )
 
-    cur.execute(
-        "UPDATE reviews SET moderation_status = 'rejected' WHERE id = %s",
-        (review_id,)
-    )
-
-    conn.commit()
-    cur.close()
-    conn.close()
+            conn.commit()
 
     return True

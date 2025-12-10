@@ -139,14 +139,24 @@ def mock_db_connection(monkeypatch):
             result = search_modules_by_name("computing")
             # Test passes without hitting real database
     """
+    from contextlib import contextmanager
+
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
     mock_cursor.fetchall.return_value = []
     mock_cursor.fetchone.return_value = None
 
+    # Mock the cursor context manager
+    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_conn.cursor.return_value.__exit__.return_value = None
+
+    # Create a context manager that yields the mock connection
+    @contextmanager
+    def mock_get_db_connection():
+        yield mock_conn
+
     import db
-    monkeypatch.setattr(db, 'get_db_connection', lambda: mock_conn)
+    monkeypatch.setattr(db, 'get_db_connection', mock_get_db_connection)
 
     return mock_cursor
 

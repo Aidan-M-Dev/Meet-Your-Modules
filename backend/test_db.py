@@ -16,34 +16,59 @@ from psycopg2.extras import RealDictRow
 
 def test_initialize_connection_pool():
     """Test that connection pool initializes correctly."""
-    from db import initialize_connection_pool, _connection_pool
+    from db import initialize_connection_pool
+    import os
 
     # Reset pool
     import db
     db._connection_pool = None
 
-    # Initialize pool
-    with patch('db.pool.SimpleConnectionPool') as mock_pool:
-        initialize_connection_pool()
-        assert mock_pool.called
+    # Temporarily set environment to non-testing to test pool initialization
+    old_env = os.environ.get('FLASK_ENV')
+    os.environ['FLASK_ENV'] = 'development'
+
+    try:
+        # Initialize pool
+        with patch('db.pool.SimpleConnectionPool') as mock_pool:
+            initialize_connection_pool()
+            assert mock_pool.called
+    finally:
+        # Restore environment
+        if old_env:
+            os.environ['FLASK_ENV'] = old_env
+        else:
+            os.environ.pop('FLASK_ENV', None)
+        # Reset pool again
+        db._connection_pool = None
 
 
 def test_get_connection_pool():
-    """Test that get_connection_pool returns the pool or raises error."""
-    from db import get_connection_pool, initialize_connection_pool
+    """Test that get_connection_pool returns the pool, auto-initializing if needed."""
+    from db import get_connection_pool
+    import os
 
     import db
     db._connection_pool = None
 
-    # Should raise error if not initialized
-    with pytest.raises(RuntimeError, match="Connection pool not initialized"):
-        get_connection_pool()
+    # Temporarily set environment to non-testing
+    old_env = os.environ.get('FLASK_ENV')
+    os.environ['FLASK_ENV'] = 'development'
 
-    # Should return pool after initialization
-    with patch('db.pool.SimpleConnectionPool'):
-        initialize_connection_pool()
-        pool = get_connection_pool()
-        assert pool is not None
+    try:
+        # Should auto-initialize and return pool
+        with patch('db.pool.SimpleConnectionPool') as mock_pool:
+            mock_pool.return_value = MagicMock()
+            pool = get_connection_pool()
+            assert pool is not None
+            assert mock_pool.called
+    finally:
+        # Restore environment
+        if old_env:
+            os.environ['FLASK_ENV'] = old_env
+        else:
+            os.environ.pop('FLASK_ENV', None)
+        # Reset pool
+        db._connection_pool = None
 
 
 # ============================================================================
@@ -187,7 +212,7 @@ def test_submit_review_appropriate(mock_db_connection):
 
     result = submit_review(
         module_iteration_id=1,
-        comment="Great module, very informative!",
+        text="Great module, very informative!",
         rating=5,
         reasonable=True  # AI approved
     )
@@ -208,7 +233,7 @@ def test_submit_review_inappropriate(mock_db_connection):
 
     result = submit_review(
         module_iteration_id=1,
-        comment="Inappropriate content",
+        text="Inappropriate content",
         rating=1,
         reasonable=False  # AI flagged
     )
@@ -228,10 +253,10 @@ def test_submit_review_invalid_iteration(mock_db_connection):
     # Mock iteration check failure
     mock_db_connection.fetchone.return_value = None
 
-    with pytest.raises(ValueError, match="Module iteration .* does not exist"):
+    with pytest.raises(ValueError, match="Module iteration .* not found"):
         submit_review(
             module_iteration_id=999,
-            comment="Test review",
+            text="Test review",
             rating=5,
             reasonable=True
         )
@@ -241,28 +266,28 @@ def test_like_review(mock_db_connection):
     """Test liking a review."""
     from db import like_or_dislike_review
 
-    mock_db_connection.fetchone.return_value = {'likes': 11}
+    mock_db_connection.fetchone.return_value = {'like_dislike': 11}
 
-    result = like_or_dislike_review(review_id=1, like=True)
+    result = like_or_dislike_review(review_id=1, like_or_dislike=True)
 
     # Verify UPDATE query was called
     assert mock_db_connection.execute.called
     call_args = str(mock_db_connection.execute.call_args)
-    assert 'likes' in call_args.lower()
+    assert 'like_dislike' in call_args.lower()
 
 
 def test_dislike_review(mock_db_connection):
     """Test disliking a review."""
     from db import like_or_dislike_review
 
-    mock_db_connection.fetchone.return_value = {'dislikes': 3}
+    mock_db_connection.fetchone.return_value = {'like_dislike': 3}
 
-    result = like_or_dislike_review(review_id=1, like=False)
+    result = like_or_dislike_review(review_id=1, like_or_dislike=False)
 
     # Verify UPDATE query was called
     assert mock_db_connection.execute.called
     call_args = str(mock_db_connection.execute.call_args)
-    assert 'dislikes' in call_args.lower()
+    assert 'like_dislike' in call_args.lower()
 
 
 def test_report_review(mock_db_connection):

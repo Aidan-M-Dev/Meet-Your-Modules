@@ -25,7 +25,7 @@ def test_health_endpoint(client):
 
 def test_health_db_endpoint_success(client):
     """Test /api/health/db endpoint with successful database connection."""
-    with patch('app.get_db_connection') as mock_conn:
+    with patch('db.get_db_connection') as mock_conn:
         mock_cursor = Mock()
         mock_cursor.fetchone.return_value = (1,)
         mock_conn.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cursor
@@ -39,7 +39,7 @@ def test_health_db_endpoint_success(client):
 
 def test_health_db_endpoint_failure(client):
     """Test /api/health/db endpoint with database connection failure."""
-    with patch('app.get_db_connection') as mock_conn:
+    with patch('db.get_db_connection') as mock_conn:
         mock_conn.side_effect = Exception("Database connection failed")
 
         response = client.get('/api/v1/health/db')
@@ -354,6 +354,10 @@ def test_get_user_not_implemented(client):
 
 def test_rate_limiting_review_submission(client):
     """Test rate limiting on review submission (5 per hour)."""
+    # Reset rate limiter to start fresh
+    from app import limiter
+    limiter.reset()
+
     with patch('app.sentiment_review') as mock_sentiment, \
          patch('app.submit_review') as mock_submit:
 
