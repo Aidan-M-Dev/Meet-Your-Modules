@@ -65,9 +65,17 @@
 
       <!-- Write Review Section -->
       <div class="write-review-section" v-if="!showReviewForm">
-        <button @click="showReviewForm = true" class="btn-primary">
+        <button
+          v-if="availableYears.length > 0"
+          @click="showReviewForm = true"
+          class="btn-primary"
+        >
           ✍️ Write a Review
         </button>
+        <div v-else class="no-review-notice">
+          <p>📝 Reviews are not available for this module yet.</p>
+          <p class="notice-detail">Module iterations must be available before reviews can be submitted.</p>
+        </div>
       </div>
 
       <div class="review-form-section" v-if="showReviewForm">
@@ -430,7 +438,8 @@ export default {
         )
 
         if (!response.ok) {
-          throw new Error('Failed to submit review')
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to submit review')
         }
 
         alert('Review submitted successfully!')
@@ -449,7 +458,7 @@ export default {
         }
       } catch (err) {
         console.error('Error submitting review:', err)
-        alert('Failed to submit review. Please try again.')
+        alert(err.message || 'Failed to submit review. Please try again.')
       } finally {
         submittingReview.value = false
       }
@@ -703,6 +712,33 @@ export default {
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+/* Write Review Section */
+.write-review-section {
+  margin-bottom: 2rem;
+  padding: 2rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.no-review-notice {
+  padding: 1.5rem;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 12px;
+  color: #92400e;
+}
+
+.no-review-notice p {
+  margin: 0.5rem 0;
+}
+
+.no-review-notice .notice-detail {
+  font-size: 0.875rem;
+  color: #b45309;
 }
 
 @media (max-width: 768px) {

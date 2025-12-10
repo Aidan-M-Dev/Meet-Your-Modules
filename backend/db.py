@@ -382,9 +382,24 @@ def submit_review(module_iteration_id, text, rating, reasonable):
 
     Returns:
         bool: True if successful
+
+    Raises:
+        ValueError: If module iteration ID doesn't exist
     """
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    # Validate that the module iteration exists
+    cur.execute(
+        "SELECT id FROM module_iterations WHERE id = %s",
+        (module_iteration_id,)
+    )
+    iteration = cur.fetchone()
+
+    if not iteration:
+        cur.close()
+        conn.close()
+        raise ValueError(f"Module iteration {module_iteration_id} not found. Cannot submit review for a module that hasn't been offered yet.")
 
     cur.execute(
         "INSERT INTO reviews (module_iteration_id, overall_rating, comment, moderation_status, like_dislike) VALUES (%s, %s, %s, %s, 0)",
