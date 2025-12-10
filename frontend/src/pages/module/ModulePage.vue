@@ -137,8 +137,12 @@
       <!-- Reviews Section -->
       <div class="reviews-section">
         <h2>Reviews ({{ totalReviews }})</h2>
-        <div v-if="weightedRating" class="average-rating">
+        <div v-if="weightedRating !== null" class="average-rating">
+          <span class="stars-display">{{ '★'.repeat(Math.round(weightedRating)) }}{{ '☆'.repeat(5 - Math.round(weightedRating)) }}</span>
           Average Rating: <strong>{{ weightedRating.toFixed(1) }}/5</strong>
+        </div>
+        <div v-else class="no-rating">
+          No ratings yet
         </div>
 
         <div v-if="totalReviews === 0" class="no-reviews">
@@ -611,11 +615,28 @@ export default {
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.average-rating .stars-display {
+  color: #fbbf24;
+  font-size: 1.25rem;
 }
 
 .average-rating strong {
   color: #1f2937;
   font-size: 1.1rem;
+}
+
+.no-rating {
+  color: #9ca3af;
+  font-size: 0.95rem;
+  font-style: italic;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .no-reviews {
