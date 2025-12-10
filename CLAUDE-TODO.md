@@ -69,7 +69,35 @@
 
 ### In Progress
 
-*(No items currently)*
+### [TEST-003] Frontend Component Tests - AdminPage
+**Type**: Technical Debt
+**Priority**: P2 (Medium)
+**Status**: Backlog
+**Estimated Effort**: L
+**Dependencies**: [MYM-001] (Admin Authentication)
+
+**Description**:
+Add comprehensive unit tests for AdminPage.vue component, including review moderation functionality, lecturer/course management, and admin actions.
+
+**Acceptance Criteria**:
+- [ ] Test reviews list loading and display
+- [ ] Test review approval/rejection actions
+- [ ] Test lecturer management (add/view/delete)
+- [ ] Test course management (add/view/delete)
+- [ ] Test admin authentication checks
+- [ ] Test error handling
+- [ ] Mock API calls appropriately
+- [ ] Test permission-based UI rendering
+
+**Related Files**:
+- `frontend/src/pages/admin/AdminPage.vue`
+- `frontend/src/__tests__/AdminPage.test.js` - New file
+
+**Testing**:
+- [ ] Unit tests with Vitest
+- [ ] Component mounting with @vue/test-utils
+- [ ] Admin action tests
+- [ ] Coverage > 70% (lower due to auth dependency)
 
 ---
 

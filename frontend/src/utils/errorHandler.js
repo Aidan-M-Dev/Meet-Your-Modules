@@ -216,14 +216,14 @@ export async function fetchWithErrorHandling(url, options = {}) {
 }
 
 /**
- * Helper to check if an error is a specific error code
+ * Check if an error object has a specific error code
  *
  * @param {Object} error - Parsed error object
  * @param {string} errorCode - Error code to check
  * @returns {boolean} True if error matches code
  */
 export function isErrorCode(error, errorCode) {
-  return error && error.code === errorCode
+  return Boolean(error && error.code === errorCode)
 }
 
 export default {

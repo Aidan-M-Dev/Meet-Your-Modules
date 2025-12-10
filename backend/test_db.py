@@ -190,12 +190,12 @@ def test_get_module_info_with_iterations(mock_db_connection):
 
     # Verify structure - returns years_info dict keyed by year
     assert isinstance(result, dict)
-    assert 2024 in result  # Year should be in the result
-    assert 'iteration_id' in result[2024]
-    assert 'lecturers' in result[2024]
-    assert 'courses' in result[2024]
-    assert 'reviews' in result[2024]
-
+    assert 'yearsInfo' in result
+    assert 2024 in result['yearsInfo']  # Year should be in the result
+    assert 'iteration_id' in result['yearsInfo'][2024]
+    assert 'lecturers' in result['yearsInfo'][2024]
+    assert 'courses' in result['yearsInfo'][2024]
+    assert 'reviews' in result['yearsInfo'][2024]
 
 def test_get_module_info_not_found(mock_db_connection):
     """Test getting info for non-existent module."""

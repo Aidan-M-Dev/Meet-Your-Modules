@@ -1,0 +1,126 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0 -- /home/am/Dev/durhack-25/backend/venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/am/Dev/durhack-25/backend
+configfile: pytest.ini
+plugins: flask-1.3.0, anyio-4.11.0, cov-7.0.0, mock-3.15.1
+collecting ... collected 85 items
+
+test_app.py::test_health_endpoint PASSED                                 [  1%]
+test_app.py::test_health_db_endpoint_success PASSED                      [  2%]
+test_app.py::test_health_db_endpoint_failure PASSED                      [  3%]
+test_app.py::test_search_modules_by_code_success PASSED                  [  4%]
+test_app.py::test_search_modules_by_code_validation_error PASSED         [  5%]
+test_app.py::test_search_modules_by_name_success PASSED                  [  7%]
+test_app.py::test_search_modules_empty_query PASSED                      [  8%]
+test_app.py::test_get_module_info_success PASSED                         [  9%]
+test_app.py::test_get_module_info_not_found PASSED                       [ 10%]
+test_app.py::test_get_module_info_invalid_id PASSED                      [ 11%]
+test_app.py::test_like_review_success PASSED                             [ 12%]
+test_app.py::test_dislike_review_success PASSED                          [ 14%]
+test_app.py::test_like_review_invalid_boolean PASSED                     [ 15%]
+test_app.py::test_report_review_success PASSED                           [ 16%]
+test_app.py::test_submit_review_success PASSED                           [ 17%]
+test_app.py::test_submit_review_flagged_by_ai PASSED                     [ 18%]
+test_app.py::test_submit_review_validation_errors PASSED                 [ 20%]
+test_app.py::test_get_courses_success PASSED                             [ 21%]
+test_app.py::test_get_pending_reviews PASSED                             [ 22%]
+test_app.py::test_get_rejected_reviews PASSED                            [ 23%]
+test_app.py::test_accept_review PASSED                                   [ 24%]
+test_app.py::test_reject_review PASSED                                   [ 25%]
+test_app.py::test_get_user_not_implemented PASSED                        [ 27%]
+test_app.py::test_rate_limiting_review_submission PASSED                 [ 28%]
+test_app.py::test_error_response_format PASSED                           [ 29%]
+test_app.py::test_404_error_format PASSED                                [ 30%]
+test_app.py::test_cors_headers PASSED                                    [ 31%]
+test_app.py::test_gzip_compression PASSED                                [ 32%]
+test_app.py::test_internal_error_with_context PASSED                     [ 34%]
+test_app.py::test_database_error_with_operation PASSED                   [ 35%]
+test_app.py::test_500_error_handler PASSED                               [ 36%]
+test_db.py::test_initialize_connection_pool PASSED                       [ 37%]
+test_db.py::test_get_connection_pool PASSED                              [ 38%]
+test_db.py::test_search_modules_by_code PASSED                           [ 40%]
+test_db.py::test_search_modules_by_name PASSED                           [ 41%]
+test_db.py::test_search_modules_empty_query PASSED                       [ 42%]
+test_db.py::test_get_module_info_with_iterations PASSED                  [ 43%]
+test_db.py::test_get_module_info_not_found PASSED                        [ 44%]
+test_db.py::test_submit_review_appropriate PASSED                        [ 45%]
+test_db.py::test_submit_review_inappropriate PASSED                      [ 47%]
+test_db.py::test_submit_review_invalid_iteration PASSED                  [ 48%]
+test_db.py::test_like_review PASSED                                      [ 49%]
+test_db.py::test_dislike_review PASSED                                   [ 50%]
+test_db.py::test_report_review PASSED                                    [ 51%]
+test_db.py::test_get_pending_reviews PASSED                              [ 52%]
+test_db.py::test_get_rejected_reviews PASSED                             [ 54%]
+test_db.py::test_accept_review PASSED                                    [ 55%]
+test_db.py::test_reject_review PASSED                                    [ 56%]
+test_db.py::test_get_all_courses PASSED                                  [ 57%]
+test_db.py::test_database_error_handling PASSED                          [ 58%]
+test_db.py::test_connection_context_manager PASSED                       [ 60%]
+test_db.py::test_connection_rollback_on_error PASSED                     [ 61%]
+test_lib.py::test_sentiment_review_approved PASSED                       [ 62%]
+test_lib.py::test_sentiment_review_flagged PASSED                        [ 63%]
+test_lib.py::test_sentiment_review_retry_then_success PASSED             [ 64%]
+test_lib.py::test_sentiment_review_max_retries_exceeded PASSED           [ 65%]
+test_lib.py::test_query_calls_gemini_api PASSED                          [ 67%]
+test_lib.py::test_notify_admins_of_reported_review PASSED                [ 68%]
+test_lib.py::test_sentiment_prompt_file_loaded PASSED                    [ 69%]
+test_lib.py::test_model_id_configured PASSED                             [ 70%]
+test_validators.py::test_validate_review_rating_valid PASSED             [ 71%]
+test_validators.py::test_validate_review_rating_invalid_type PASSED      [ 72%]
+test_validators.py::test_validate_review_rating_out_of_range PASSED      [ 74%]
+test_validators.py::test_sanitize_review_text_valid PASSED               [ 75%]
+test_validators.py::test_sanitize_review_text_none_or_non_string PASSED  [ 76%]
+test_validators.py::test_sanitize_review_text_too_short PASSED           [ 77%]
+test_validators.py::test_sanitize_review_text_too_long PASSED            [ 78%]
+test_validators.py::test_sanitize_review_text_removes_html PASSED        [ 80%]
+test_validators.py::test_sanitize_review_text_strips_whitespace PASSED   [ 81%]
+test_validators.py::test_validate_module_code_valid PASSED               [ 82%]
+test_validators.py::test_validate_module_code_none_or_non_string PASSED  [ 83%]
+test_validators.py::test_validate_module_code_too_long PASSED            [ 84%]
+test_validators.py::test_validate_module_code_invalid_format PASSED      [ 85%]
+test_validators.py::test_validate_search_query_valid PASSED              [ 87%]
+test_validators.py::test_validate_search_query_none_or_non_string PASSED [ 88%]
+test_validators.py::test_validate_search_query_too_long PASSED           [ 89%]
+test_validators.py::test_validate_search_query_wildcard PASSED           [ 90%]
+test_validators.py::test_validate_search_query_removes_html PASSED       [ 91%]
+test_validators.py::test_validate_search_query_normalizes_whitespace PASSED [ 92%]
+test_validators.py::test_validate_integer_id_valid PASSED                [ 94%]
+test_validators.py::test_validate_integer_id_invalid_type PASSED         [ 95%]
+test_validators.py::test_validate_integer_id_negative_or_zero PASSED     [ 96%]
+test_validators.py::test_validate_boolean_valid_bool PASSED              [ 97%]
+test_validators.py::test_validate_boolean_valid_strings PASSED           [ 98%]
+test_validators.py::test_validate_boolean_invalid PASSED                 [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.3-final-0 ________________
+
+Name                 Stmts   Miss  Cover   Missing
+--------------------------------------------------
+app.py                 238     63    74%   56, 135, 152-155, 173-176, 223-224, 237-240, 270-274, 297-298, 312-315, 329-332, 351-370, 383-417, 421-424
+config.py               54     12    78%   59-64, 80, 93-101, 146
+conftest.py             83     20    76%   61, 75, 85-88, 98-100, 173, 189, 208, 219, 237, 259-270, 284-295
+db.py                  265     89    66%   34-35, 49-51, 82, 107-110, 147-148, 177-211, 430-436, 593-715
+errors.py               57      5    91%   171, 186, 192-194
+lib.py                  33      0   100%
+logger.py               26      1    96%   31
+test_app.py            233      0   100%
+test_db.py             173      2    99%   40, 69
+test_lib.py             48      0   100%
+test_validators.py     131      0   100%
+validators.py           72      0   100%
+--------------------------------------------------
+TOTAL                 1413    192    86%
+Coverage HTML written to dir htmlcov
+============================= slowest 10 durations =============================
+0.02s call     test_app.py::test_search_modules_by_name_success
+0.01s call     test_app.py::test_rate_limiting_review_submission
+0.00s call     test_app.py::test_health_db_endpoint_success
+0.00s setup    test_app.py::test_health_endpoint
+0.00s call     test_app.py::test_submit_review_validation_errors
+0.00s call     test_app.py::test_submit_review_success
+0.00s call     test_validators.py::test_validate_boolean_invalid
+0.00s call     test_validators.py::test_validate_integer_id_negative_or_zero
+0.00s call     test_app.py::test_health_endpoint
+0.00s call     test_app.py::test_health_db_endpoint_failure
+============================== 85 passed in 0.59s ==============================
