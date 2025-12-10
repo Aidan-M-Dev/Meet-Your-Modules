@@ -6,9 +6,7 @@ from flask_cors import CORS
 from db import search_modules_by_code, search_modules_by_name, get_module_info_with_iterations, get_all_courses, like_or_dislike_review, report_review, submit_review, get_pending_reviews, get_rejected_reviews, accept_review, reject_review
 from lib import sentiment_review
 from logger import setup_logger
-
-# Set up logger
-logger = setup_logger(__name__)
+from config import get_config
 
 # Load .env from repo root if present so frontend and backend can share the same env file.
 # Fallback to default behaviour (load from CWD) if repo-root .env is not present.
@@ -19,12 +17,25 @@ if env_path.exists():
 else:
     load_dotenv()
 
+# Get configuration based on FLASK_ENV
+Config = get_config()
+
+# Set up logger
+logger = setup_logger(__name__)
+
+# Create Flask app with configuration
 app = Flask(__name__)
-CORS(app, origins=f"http://{os.getenv('FRONTEND_ADDRESS')}:{os.getenv('FRONTEND_PORT')}")
+app.config.from_object(Config)
+
+# Configure CORS with environment-specific origins
+CORS(app, origins=Config.CORS_ORIGINS)
 
 # Log application startup
+env_name = os.getenv('FLASK_ENV', 'development')
 logger.info(f"Starting Meet Your Modules backend server")
-logger.info(f"CORS enabled for: http://{os.getenv('FRONTEND_ADDRESS')}:{os.getenv('FRONTEND_PORT')}")
+logger.info(f"Environment: {env_name}")
+logger.info(f"Debug mode: {Config.DEBUG}")
+logger.info(f"CORS enabled for: {', '.join(Config.CORS_ORIGINS)}")
 
 
 @app.route("/api/health")
@@ -162,6 +173,7 @@ def reject_review_route(review_id):
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
+    port = Config.BACKEND_PORT
     logger.info(f"Starting Flask server on port {port}")
-    app.run(debug=True, host="0.0.0.0", port=port)
+    logger.info(f"Database: {Config.DATABASE_URL[:30]}..." if Config.DATABASE_URL else "Database: Not configured")
+    app.run(debug=Config.DEBUG, host="0.0.0.0", port=port)
