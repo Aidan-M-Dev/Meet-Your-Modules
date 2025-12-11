@@ -96,6 +96,9 @@ GET  /api/admin/pendingReviews
 GET  /api/admin/rejectedReviews
 POST /api/admin/acceptReview/{review_id}
 POST /api/admin/rejectReview/{review_id}
+POST /api/admin/uploadProgrammeSpec
+     Body: multipart/form-data with 'pdf' field
+     Returns: Parsed programme data (departments, courses, modules by year)
 ```
 
 ---
@@ -278,6 +281,60 @@ def accept_review(review_id):
             """, (review_id,))
 ```
 
+### 5. PDF Programme Specification Parser
+```python
+# lib.py - Parses Imperial College Programme Specification PDFs
+def programme_specification_pdf_parser(file_path):
+    """
+    Extracts structured data from standardized PDFs:
+    - Programme info (code, title, year) from filename
+    - Department and faculty from page 1 text
+    - Module tables with year/FHEQ level detection
+    - Course awards (MEng/BEng)
+
+    Returns:
+    {
+        "programme": {"code": "G400", "title": "Computing", "academic_year": "2024"},
+        "department": {"name": "Computing", "faculty": "Faculty of Engineering"},
+        "courses": [{"level": "MEng", "code": "G400", ...}],
+        "modules_by_year": {
+            "year_1": {
+                "year": 1,
+                "fheq_level": 4,
+                "modules": [
+                    {
+                        "code": "COMP40001",
+                        "title": "Programming I",
+                        "type": "Core",
+                        "term": "Autumn",
+                        "credits": 6.0
+                    }
+                ]
+            }
+        }
+    }
+    """
+    # Uses pdfplumber for table extraction
+    # Validates module codes: [A-Z]{4}\d{5} (e.g., COMP40001)
+    # Maps FHEQ levels to years: Level 4=Year1, 5=Year2, 6=Year3, 7=Year4
+```
+
+**Key Features:**
+- **Filename parsing**: Extracts programme code (e.g., G400), title, and academic year
+- **Text extraction**: Regex-based parsing for department, faculty, and year headers
+- **Table detection**: Finds "Module Title" headers to identify module tables
+- **Module validation**: Only accepts codes matching `[A-Z]{4}\d{5}` format
+- **Year inference**: Uses FHEQ level from module code (5th digit) when ambiguous
+- **Multiple year handling**: Detects when single page contains multiple year sections
+- **Robust parsing**: Handles empty cells, newlines in titles, missing credits
+
+**Endpoint:**
+```
+POST /api/admin/uploadProgrammeSpec
+Content-Type: multipart/form-data
+Field: pdf (file upload)
+```
+
 ---
 
 ## 🐛 Common Issues & Solutions
@@ -346,6 +403,14 @@ The backend has comprehensive pytest test coverage organized into:
   - Sentiment analysis (with mocked Gemini API)
   - Admin notifications
   - File loading
+- **`test_pdf_parser.py`** - PDF parser tests
+  - Imperial College Programme Specification parsing
+  - Filename parsing (code, title, year extraction)
+  - Department and faculty extraction
+  - Module table parsing with validation
+  - FHEQ level detection and year mapping
+  - Course/award detection (MEng/BEng)
+  - Edge cases (empty PDFs, invalid codes, multiple years)
 - **`test_validators.py`** - Input validation tests
   - All validation functions with edge cases
   - XSS prevention, sanitization
@@ -377,8 +442,9 @@ npm run test:coverage             # With coverage
 - Test discovery patterns (`test_*.py`)
 - Excluded from coverage:
   - Test files themselves
-  - `# pragma: no cover` marked functions (unused PDF parsing)
+  - `# pragma: no cover` marked functions
   - `__pycache__`, venv folders
+  - Abstract methods and unreachable code
 
 **Important Test Patterns:**
 1. **Mock fixtures in conftest.py** - Reusable across all tests
@@ -386,11 +452,19 @@ npm run test:coverage             # With coverage
 3. **FLASK_ENV=testing** - Set in conftest before app import to skip DB pool
 4. **Rate limiter reset** - Call `limiter.reset()` before rate limit tests
 
-#### Coverage Exclusions
+#### Coverage Status
 
-Functions marked with `# pragma: no cover`:
-- `programme_specification_pdf_parser()` - Unused PDF parsing (can be enabled when needed)
+All major functionality has test coverage including:
+- ✅ API endpoints with validation and error handling
+- ✅ Database operations with connection pooling
+- ✅ Input sanitization and XSS prevention
+- ✅ AI sentiment analysis (mocked)
+- ✅ PDF parsing for Imperial College Programme Specifications
+- ✅ Rate limiting and compression
+
+Functions marked with `# pragma: no cover` (if any):
 - Development/debugging code paths
+- Abstract methods and type checking blocks
 
 ### Manual Testing Checklist
 - [ ] Search modules by name/code/lecturer
